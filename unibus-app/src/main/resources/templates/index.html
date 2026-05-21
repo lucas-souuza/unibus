@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1440, initial-scale=1.0" />
+  <title>UNIBUS</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <link rel="stylesheet" href="/css/index.css" th:href="@{/css/index.css}" />
+
+</head>
+    <body>
+
+      <div class="desktop-only-warning">
+        <div class="warning-card">
+          <div style="width:56px;height:56px;border-radius:18px;background:#0B0B0B;display:flex;align-items:center;justify-content:center;margin:0 auto;">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+              <rect x="2" y="5" width="20" height="12" rx="3" fill="#F5CF27"/>
+              <rect x="5" y="8" width="4" height="3" rx="1" fill="#0B0B0B"/>
+              <rect x="11" y="8" width="4" height="3" rx="1" fill="#0B0B0B"/>
+              <circle cx="7" cy="18" r="2" fill="white"/>
+              <circle cx="17" cy="18" r="2" fill="white"/>
+            </svg>
+          </div>
+          <h1>Use o UNIBUS em desktop</h1>
+          <p>Esta tela foi otimizada exclusivamente para navegação web em notebooks e monitores, com painéis amplos, mapa maior e navegação lateral fixa.</p>
+        </div>
+      </div>
+
+      <div class="app-shell">
+
+    <!-- SIDEBAR / NAV -->
+    <nav class="sidebar">
+      <div>
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <rect x="2" y="5" width="20" height="12" rx="3" fill="#0B0B0B"/>
+              <rect x="5" y="8" width="4" height="3" rx="1" fill="#F5CF27"/>
+              <rect x="11" y="8" width="4" height="3" rx="1" fill="#F5CF27"/>
+              <circle cx="7" cy="18" r="2" fill="#0B0B0B"/>
+              <circle cx="17" cy="18" r="2" fill="#0B0B0B"/>
+            </svg>
+          </div>
+          <div>
+            <div class="sidebar-brand-title">UNIBUS</div>
+            <div class="sidebar-brand-sub">Sistema de Rastreio UNIRIO</div>
+          </div>
+        </div>
+
+        <div class="sidebar-nav">
+          <button data-target="home" class="tab-btn is-active">
+            <span class="tab-icon"><i data-lucide="layout-dashboard" class="w-5 h-5"></i></span>
+            <span>Visão geral</span>
+          </button>
+
+          <button data-target="rastreio" class="tab-btn">
+            <span class="tab-icon"><i data-lucide="navigation" class="w-5 h-5"></i></span>
+            <span>Rastreio</span>
+          </button>
+
+          <button data-target="linhas" class="tab-btn">
+            <span class="tab-icon"><i data-lucide="bus-front" class="w-5 h-5"></i></span>
+            <span>Linhas</span>
+          </button>
+
+          <button data-target="horarios" class="tab-btn">
+            <span class="tab-icon"><i data-lucide="clock-3" class="w-5 h-5"></i></span>
+            <span>Horários</span>
+          </button>
+
+          <button data-target="perfil" class="tab-btn">
+            <span class="tab-icon"><i data-lucide="circle-user-round" class="w-5 h-5"></i></span>
+            <span>Perfil</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="eyebrow">Status do sistema</div>
+        <p>Monitoramento ativo e atualização de mapa em tempo real</p>
+      </div>
+    </nav>
+
+    <!-- HEADER -->
+    <header class="topbar surface">
+      <div>
+        <div class="topbar-eyebrow">Painel operacional</div>
+        <h1 id="logo-title" class="topbar-title">UNIBUS</h1>
+        <div id="logo-line"
+            style="height:2px;width:0;background:#F5CF27;border-radius:999px;margin-top:8px;transition:width 0.5s ease 0.35s;"></div>
+
+        <p class="topbar-subtitle"
+          th:text="${usuarioNome != null ? 'Olá, ' + usuarioNome + '. Acompanhe suas linhas em tempo real.' : 'Olá, visitante. Faça login para acessar seus recursos.'}">
+          Olá, visitante. Faça login para acessar seus recursos.
+        </p>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="ghost-btn" type="button" onclick="abrirTutorial()">
+          <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+          <span>Como usar</span>
+        </button>
+
+        <button class="icon-btn" type="button" aria-label="Notificações">
+          <i data-lucide="bell" class="w-5 h-5"></i>
+          <span class="notif-badge" th:text="${qtdNotificacoes != null ? qtdNotificacoes : 3}">3</span>
+        </button>
+
+        <div class="profile-menu-wrap">
+          <button id="profile-toggle"
+                  class="icon-btn"
+                  type="button"
+                  aria-label="Abrir menu de perfil"
+                  onclick="toggleProfileMenu(event)">
+            <i data-lucide="circle-user-round" class="w-5 h-5"></i>
+          </button>
+
+          <div id="profile-menu" class="profile-menu">
+
+            <!-- VISITANTE -->
+            <div th:if="${usuarioNome == null}">
+              <div class="profile-menu-header">
+                <strong>Olá, visitante</strong>
+                <span>Entre para acessar seus recursos</span>
+              </div>
+
+              <a href="/login" th:href="@{/login}" class="profile-menu-item">
+                <i data-lucide="log-in" class="w-4 h-4"></i>
+                <span>Entrar</span>
+              </a>
+
+              <a href="/cadastro" th:href="@{/cadastro}" class="profile-menu-item">
+                <i data-lucide="user-plus" class="w-4 h-4"></i>
+                <span>Criar conta</span>
+              </a>
+            </div>
+
+            <!-- USUÁRIO LOGADO -->
+            <div th:if="${usuarioNome != null}">
+              <div class="profile-menu-header">
+                <strong th:text="${'Olá, ' + usuarioNome}">Olá, Lucas Souza</strong>
+                <span th:text="${usuarioDescricao != null ? usuarioDescricao : 'Aluno · UNIRIO'}">Aluno · UNIRIO</span>
+              </div>
+
+              <a href="/perfil" th:href="@{/perfil}" class="profile-menu-item">
+                <i data-lucide="user-round" class="w-4 h-4"></i>
+                <span>Meu perfil</span>
+              </a>
+
+              <a href="/configuracoes" th:href="@{/configuracoes}" class="profile-menu-item">
+                <i data-lucide="settings" class="w-4 h-4"></i>
+                <span>Configurações</span>
+              </a>
+
+              <form th:action="@{/logout}" method="post" class="profile-menu-form">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                <button type="submit" class="profile-menu-item danger profile-menu-btn">
+                  <i data-lucide="log-out" class="w-4 h-4"></i>
+                  <span>Sair</span>
+                </button>
+              </form>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </header>
+    <!-- MAIN -->
+    <main class="content-main">
+
+      <!-- HOME -->
+      <section id="home" class="page page-home active">
+
+        <div class="hero-card">
+          <div>
+            <p class="eyebrow">Próximo embarque</p>
+            <h2 th:text="${proximaLinhaTitulo != null ? proximaLinhaTitulo : 'Linha 302 · UNIRIO Centro'}">
+              Linha 302 · UNIRIO Centro
+            </h2>
+            <p class="hero-sub"
+               th:text="${proximaLinhaSubtitulo != null ? proximaLinhaSubtitulo : 'Saída em 8 min · Ponto Biblioteca Central'}">
+              Saída em 8 min · Ponto Biblioteca Central
+            </p>
+
+            <div class="hero-stats">
+              <div class="hero-stat">
+                <p>Saída</p>
+                <strong th:text="${proximaSaida != null ? proximaSaida : '22:00'}">22:00</strong>
+              </div>
+              <div class="hero-stat">
+                <p>Trajeto</p>
+                <strong th:text="${proximoTrajeto != null ? proximoTrajeto : '14 km'}">14 km</strong>
+              </div>
+              <div class="hero-stat">
+                <p>Status</p>
+                <strong th:text="${proximoStatus != null ? proximoStatus : 'No prazo'}">No prazo</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-footer">
+            <div class="route-info">
+              Partida prevista no ponto Biblioteca Central, com rota passando por Urca, Botafogo e Centro.
+            </div>
+            <span class="badge-status">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+              Operação normal
+            </span>
+          </div>
+        </div>
+
+        <div class="home-side">
+          <div class="map-card section-card">
+            <div class="card-head">
+              <div>
+                <h3>Mapa ao vivo</h3>
+                <p>Posição em tempo real e visualização rápida do campus</p>
+              </div>
+              <button class="pill-btn alt" type="button">Atualizar</button>
+            </div>
+            <div id="map"></div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="metric-card dark">
+              <p>Linhas ativas</p>
+              <span class="metric-value" th:text="${linhasAtivas != null ? linhasAtivas : 12}">12</span>
+              <span class="metric-sub" th:text="${linhasAtrasadas != null ? linhasAtrasadas + ' com atraso' : '3 com atraso'}">3 com atraso</span>
+            </div>
+
+            <div class="metric-card cyan">
+              <p>Alerta</p>
+              <span class="metric-value" style="font-size:1.35rem; line-height:1.25;"
+                    th:text="${alertaTitulo != null ? alertaTitulo : 'Mudança de rota às 22:15'}">
+                Mudança de rota às 22:15
+              </span>
+              <span class="metric-sub" th:text="${alertaSubtitulo != null ? alertaSubtitulo : 'Campus Praia Vermelha'}">Campus Praia Vermelha</span>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="abrirTutorial()" class="tutorial-card">
+          <div class="tutorial-icon">
+            <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <p class="eyebrow">Novo por aqui?</p>
+            <h4>Veja como usar o UNIBUS e acompanhe linhas, horários e avaliações</h4>
+          </div>
+          <i data-lucide="chevron-right" class="w-5 h-5 chevron"></i>
+        </button>
+
+      </section>
+
+      <!-- RASTREIO -->
+      <section id="rastreio" class="page page-rastreio">
+        <div class="rastreio-head">
+          <div>
+            <h2 style="margin:0;font-size:2rem;font-weight:800;line-height:1.1;">Rastreio ao vivo</h2>
+            <p style="margin:6px 0 0;font-size:0.95rem;color:var(--muted);">Mapa ampliado para acompanhamento operacional das linhas</p>
+          </div>
+          <button class="ghost-btn" type="button" onclick="centerMap()">
+            <i data-lucide="locate-fixed" class="w-4 h-4"></i>
+            <span>Centralizar</span>
+          </button>
+        </div>
+
+        <div class="rastreio-shell">
+          <div id="map-rastreio"></div>
+
+          <div class="map-floating map-search">
+            <button class="icon-btn" type="button" aria-label="Buscar linha">
+              <i data-lucide="search" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div class="map-floating map-center">
+            <button onclick="centerMap()" class="icon-btn" type="button" aria-label="Minha localização">
+              <i data-lucide="locate-fixed" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div class="map-floating map-filters">
+            <div class="title">Linhas visíveis</div>
+            <div class="linha-stack">
+              <button onclick="toggleLinha('302', this)" class="linha-btn is-active">
+                <span>UNIRIO Centro</span>
+                <span class="tag">302</span>
+              </button>
+
+              <button onclick="toggleLinha('415', this)" class="linha-btn">
+                <span>UNIRIO Tijuca</span>
+                <span class="tag" style="background:#27F5EB;">415</span>
+              </button>
+
+              <button onclick="toggleLinha('108', this)" class="linha-btn">
+                <span>Zona Norte</span>
+                <span class="tag" style="background:#111;color:#fff;">108</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="map-floating map-summary">
+            <p class="eyebrow">Linha em destaque</p>
+            <h3 th:text="${proximaLinhaTitulo != null ? proximaLinhaTitulo : 'Linha 302 · UNIRIO Centro'}">Linha 302 · UNIRIO Centro</h3>
+            <p>Visualização em mapa com foco em tomada de decisão rápida, atraso operacional e leitura clara da posição dos ônibus.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- LINHAS -->
+      <section id="linhas" class="page">
+        <div class="section-head">
+          <div>
+            <h2>Linhas</h2>
+            <p>Rotas, disponibilidade e avaliações em tempo real</p>
+          </div>
+          <button class="icon-btn" type="button" aria-label="Buscar">
+            <i data-lucide="search" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <div class="cards-grid-3">
+          <!-- Linha 302 -->
+          <div class="linha-card section-card">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;">
+              <div>
+                <span class="linha-badge" style="background:#F5CF27;color:#000;">302</span>
+                <h3>UNIRIO Centro</h3>
+                <p class="trajeto">Urca → Botafogo → Centro</p>
+              </div>
+              <span class="status-chip" style="background:#dcfce7;color:#15803d;">No prazo</span>
+            </div>
+
+            <div class="linha-meta">
+              <span>Próxima saída: 22:00</span>
+              <span>38 lugares livres</span>
+            </div>
+
+            <button onclick="abrirReviews('302')" class="review-trigger">
+              <span>⭐ 4.0 · 24 avaliações</span>
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Linha 415 -->
+          <div class="linha-card section-card">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;">
+              <div>
+                <span class="linha-badge" style="background:#27F5EB;color:#000;">415</span>
+                <h3>UNIRIO Tijuca</h3>
+                <p class="trajeto">Maracanã → Tijuca → Urca</p>
+              </div>
+              <span class="status-chip" style="background:#fef3c7;color:#a16207;">+12 min</span>
+            </div>
+
+            <div class="linha-meta">
+              <span>Próxima saída: 22:10</span>
+              <span>22 lugares livres</span>
+            </div>
+
+            <button onclick="abrirReviews('415')" class="review-trigger">
+              <span>⭐ 3.5 · 17 avaliações</span>
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Linha 108 -->
+          <div class="linha-card section-card">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;">
+              <div>
+                <span class="linha-badge" style="background:#111;color:#fff;">108</span>
+                <h3>UNIRIO Zona Norte</h3>
+                <p class="trajeto">Méier → São Cristóvão → Centro</p>
+              </div>
+              <span class="status-chip" style="background:#fee2e2;color:#b91c1c;">Lotado</span>
+            </div>
+
+            <div class="linha-meta">
+              <span>Próxima saída: 22:25</span>
+              <span>0 lugares livres</span>
+            </div>
+
+            <button onclick="abrirReviews('108')" class="review-trigger">
+              <span>⭐ 3.2 · 11 avaliações</span>
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- HORÁRIOS -->
+      <section id="horarios" class="page">
+        <div class="section-head">
+          <div>
+            <h2>Horários</h2>
+            <p>Saídas previstas para hoje com leitura mais ampla para web</p>
+          </div>
+        </div>
+
+        <div class="schedule-tabs">
+          <button class="schedule-pill is-active" type="button">302 · Centro</button>
+          <button class="schedule-pill" type="button">415 · Tijuca</button>
+          <button class="schedule-pill" type="button">108 · Zona Norte</button>
+        </div>
+
+        <div class="schedule-wrap">
+          <div class="schedule-card section-card">
+            <div class="card-top">
+              <div>
+                <div class="eyebrow">Linha selecionada</div>
+                <h3 style="margin:6px 0 0;font-size:1.12rem;font-weight:800;">302 · UNIRIO Centro</h3>
+              </div>
+              <span class="status-chip" style="background:#F5CF27;color:#000;">Hoje</span>
+            </div>
+
+            <div class="trip-featured">
+              <div>
+                <p>Saída</p>
+                <strong>22:00</strong>
+              </div>
+              <div>
+                <p>Chegada</p>
+                <strong>22:35</strong>
+              </div>
+              <span class="tag-next">Próximo</span>
+            </div>
+
+            <div class="trip-row">
+              <div>
+                <p>Saída</p>
+                <strong>23:00</strong>
+              </div>
+              <div style="text-align:right;">
+                <p>Chegada</p>
+                <strong>23:35</strong>
+              </div>
+            </div>
+
+            <div class="trip-row">
+              <div>
+                <p>Saída</p>
+                <strong>00:00</strong>
+              </div>
+              <div style="text-align:right;">
+                <p>Chegada</p>
+                <strong>00:35</strong>
+              </div>
+            </div>
+
+            <div class="trip-row">
+              <div>
+                <p>Saída</p>
+                <strong>01:00</strong>
+              </div>
+              <div style="text-align:right;">
+                <p>Chegada</p>
+                <strong>01:35</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PERFIL -->
+      <section id="perfil" class="page">
+        <div class="section-head">
+          <div>
+            <h2>Perfil</h2>
+            <p>Seus dados e configurações</p>
+          </div>
+        </div>
+
+        <!-- VISITANTE -->
+        <div th:if="${usuarioNome == null}" class="profile-layout">
+          <div class="profile-hero">
+            <div class="profile-avatar">?</div>
+            <h3>Olá, visitante</h3>
+            <p>Entre na sua conta para acessar seus dados, passe universitário e preferências.</p>
+            <span class="profile-badge">Acesso não autenticado</span>
+          </div>
+
+          <div class="profile-grid">
+            <a href="/login" th:href="@{/login}" class="profile-link">
+              <div class="icon-wrap" style="background:rgba(39,245,235,0.22);">
+                <i data-lucide="log-in" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h4>Entrar</h4>
+                <p>Acesse sua conta institucional</p>
+              </div>
+            </a>
+
+            <a href="/cadastro" th:href="@{/cadastro}" class="profile-link">
+              <div class="icon-wrap" style="background:rgba(245,207,39,0.34);">
+                <i data-lucide="user-plus" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h4>Criar conta</h4>
+                <p>Cadastre-se para usar todos os recursos</p>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <!-- USUÁRIO LOGADO -->
+        <div th:if="${usuarioNome != null}" class="profile-layout">
+          <div class="profile-hero">
+            <div class="profile-avatar" th:text="${usuarioIniciais != null ? usuarioIniciais : 'US'}">LS</div>
+            <h3 th:text="${'Olá, ' + usuarioNome}">Olá, Lucas Souza</h3>
+            <p th:text="${usuarioDescricao != null ? usuarioDescricao : 'Aluno · UNIRIO'}">Aluno · UNIRIO</p>
+            <span class="profile-badge">Cartão ativo</span>
+          </div>
+
+          <div class="profile-grid">
+            <a href="/perfil" th:href="@{/perfil}" class="profile-link">
+              <div class="icon-wrap" style="background:rgba(39,245,235,0.22);">
+                <i data-lucide="user-round" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h4>Dados do usuário</h4>
+                <p>Curso, matrícula e preferências</p>
+              </div>
+            </a>
+
+            <a href="/passe" th:href="@{/passe}" class="profile-link">
+              <div class="icon-wrap" style="background:rgba(245,207,39,0.34);">
+                <i data-lucide="credit-card" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h4>Passe universitário</h4>
+                <p>Validade até 12/2026</p>
+              </div>
+            </a>
+
+            <a href="/notificacoes" th:href="@{/notificacoes}" class="profile-link">
+              <div class="icon-wrap" style="background:rgba(11,11,11,0.06);">
+                <i data-lucide="bell" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h4>Notificações</h4>
+                <p>Alertas de atraso e mudança de rota</p>
+              </div>
+            </a>
+
+            <a href="/configuracoes" th:href="@{/configuracoes}" class="profile-link">
+              <div class="icon-wrap" style="background:rgba(11,11,11,0.06);">
+                <i data-lucide="settings" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h4>Configurações</h4>
+                <p>Tema, acessibilidade e conta</p>
+              </div>
+            </a>
+
+            <a href="/logout" th:href="@{/logout}" class="profile-link danger-link" style="grid-column:1 / -1;">
+              <div class="icon-wrap" style="background:#fef2f2;">
+                <i data-lucide="log-out" class="w-5 h-5 text-red-500"></i>
+              </div>
+              <div>
+                <h4>Sair</h4>
+                <p>Encerrar sessão com segurança</p>
+              </div>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- REVIEWS DRAWER -->
+    <div id="reviews-sheet" class="pointer-events-none">
+      <div id="reviews-overlay" onclick="fecharReviews()"></div>
+      <div id="reviews-panel">
+        <div class="sheet-scroll">
+          <div class="sheet-head">
+            <div>
+              <h3 id="reviews-titulo">Linha 302 · Centro</h3>
+              <p>Avaliações dos alunos</p>
+            </div>
+            <button onclick="fecharReviews()" class="icon-btn" type="button">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div class="rating-box">
+            <strong id="reviews-nota">4.0</strong>
+            <div>
+              <div id="reviews-estrelas" class="text-lg">⭐⭐⭐⭐☆</div>
+              <p id="reviews-total" class="muted" style="margin:6px 0 0;font-size:0.82rem;">24 avaliações</p>
+            </div>
+          </div>
+
+          <div id="reviews-lista" class="review-list"></div>
+
+          <button class="pill-btn" style="width:100%;margin-top:18px;height:48px;" type="button">
+            Avaliar esta linha
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL TUTORIAL -->
+    <div id="tutorial-modal" class="pointer-events-none">
+      <div id="tutorial-overlay" onclick="fecharTutorial()"></div>
+      <div id="tutorial-panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:10px;">
+          <div>
+            <h3 style="margin:0;font-size:1.35rem;font-weight:800;">Como usar o UNIBUS</h3>
+            <p style="margin:8px 0 0;font-size:0.9rem;color:var(--muted);">Guia rápido para acompanhar ônibus, horários e linhas.</p>
+          </div>
+          <button onclick="fecharTutorial()" class="icon-btn" type="button">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div>
+          <div class="tutorial-step">
+            <span class="step-num" style="background:#F5CF27;color:#000;">1</span>
+            <div>
+              <h4>Acompanhe seu ônibus</h4>
+              <p>Na aba Rastreio, veja em tempo real onde estão os ônibus de cada linha no mapa ampliado.</p>
+            </div>
+          </div>
+
+          <div class="tutorial-step">
+            <span class="step-num" style="background:#0B0B0B;color:#fff;">2</span>
+            <div>
+              <h4>Consulte horários e rotas</h4>
+              <p>Em Linhas e Horários você confere saídas previstas, ocupação e o trajeto de cada linha com mais clareza em desktop.</p>
+            </div>
+          </div>
+
+          <div class="tutorial-step">
+            <span class="step-num" style="background:#27F5EB;color:#000;">3</span>
+            <div>
+              <h4>Avalie o serviço</h4>
+              <p>Abra o painel lateral de avaliações para comparar experiência dos alunos e contribuir com feedbacks.</p>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="fecharTutorial()" class="pill-btn" style="width:100%;height:50px;margin-top:18px;">
+          Entendido!
+        </button>
+      </div>
+    </div>
+
+  </div><!-- fim wrapper -->
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script th:src="@{/js/index.js}" src="/js/index.js"></script>
+
+  <script th:inline="javascript">
+    const initialPage = /*[[${paginaInicial}]]*/ 'home';
+  </script>
+</body>
+</html>
