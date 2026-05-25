@@ -3,10 +3,6 @@ package br.com.unibus.unibus_app.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.Type;
-import org.hibernate.type.SqlTypes;
-
 import java.time.LocalDateTime;
 
 @Setter
@@ -29,8 +25,7 @@ public class Usuario {
     @Column(name = "senha")
     private String senha;
 
-    @Column(name = "notificacoes_ativas")
-    @JdbcTypeCode(SqlTypes.TINYINT)
+    @Column(name = "notificacoes_ativas", columnDefinition = "TINYINT")
     private Boolean notificacoesAtivas;
 
     @Column(name = "criado_em")

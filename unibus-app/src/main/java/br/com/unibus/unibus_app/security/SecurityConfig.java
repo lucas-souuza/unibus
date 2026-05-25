@@ -22,7 +22,8 @@ public class SecurityConfig {
         http
                 .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/cadastro", "/css/**", "/js/**","/images/**","/").permitAll()
+                        .requestMatchers("/login", "/cadastro", "/css/**", "/js/**", "/dist/**", "/images/**", "/").permitAll()
+                        .requestMatchers("/api/onibus/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form

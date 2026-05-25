@@ -22,25 +22,15 @@ lucide.createIcons();
     const pages = document.querySelectorAll('.page');
 
     let map;
-    let mapRastreio;
-    const linhasVisiveis = { '302': true, '415': false, '108': false };
-    const marcadores = {};
+    const linhasVisiveis = { '302': true, '415': true, '108': true };
 
-    const onibusData = {
-      '302': [
-        { coords: [-22.9520, -43.1729], label: 'Ônibus 302-A' },
-        { coords: [-22.9450, -43.1800], label: 'Ônibus 302-B' }
-      ],
-      '415': [
-        { coords: [-22.9350, -43.1900], label: 'Ônibus 415-A' }
-      ],
-      '108': [
-        { coords: [-22.9200, -43.2100], label: 'Ônibus 108-A' },
-        { coords: [-22.9280, -43.2050], label: 'Ônibus 108-B' }
-      ]
-    };
+    let currentPage = 'home';
 
     function showPage(target) {
+      if (currentPage === 'rastreio' && target !== 'rastreio') {
+        window.UnibusRastreio?.setActive(false);
+      }
+
       pages.forEach(page => page.classList.remove('active'));
       const page = document.getElementById(target);
       if (page) page.classList.add('active');
@@ -59,9 +49,10 @@ lucide.createIcons();
       if (target === 'rastreio') {
         setTimeout(() => {
           initMapRastreio();
-          mapRastreio && mapRastreio.invalidateSize();
         }, 150);
       }
+
+      currentPage = target;
     }
 
     tabs.forEach(btn => {
@@ -84,59 +75,25 @@ lucide.createIcons();
     }
 
     function initMapRastreio() {
-      if (mapRastreio) return;
+      if (!window.UnibusRastreio) return;
+      window.UnibusRastreio.mount();
+      window.UnibusRastreio.setActive(true);
+      syncLinhasVisiveisRastreio();
+    }
 
-      mapRastreio = L.map('map-rastreio', { zoomControl: false }).setView([-22.9400, -43.1900], 13);
-
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap &copy; CARTO'
-      }).addTo(mapRastreio);
-
-      L.control.zoom({ position: 'bottomright' }).addTo(mapRastreio);
-
-      Object.keys(onibusData).forEach(linha => {
-        marcadores[linha] = [];
-        onibusData[linha].forEach(bus => {
-          const bg = linha === '302' ? '#F5CF27' : linha === '415' ? '#27F5EB' : '#0B0B0B';
-          const icon = L.divIcon({
-            className: '',
-            html: `<div style="width:14px;height:14px;background:${bg};border:2px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.24);"></div>`,
-            iconSize: [14, 14],
-            iconAnchor: [7, 7]
-          });
-
-          const marker = L.marker(bus.coords, { icon })
-            .bindPopup(`<b>${bus.label}</b><br>Linha ${linha}`);
-
-          if (linhasVisiveis[linha]) marker.addTo(mapRastreio);
-          marcadores[linha].push(marker);
-        });
-      });
+    function syncLinhasVisiveisRastreio() {
+      window.UnibusRastreio?.setVisibleLines({ ...linhasVisiveis });
     }
 
     function toggleLinha(linha, btn) {
       linhasVisiveis[linha] = !linhasVisiveis[linha];
       const ativo = linhasVisiveis[linha];
-
-      marcadores[linha]?.forEach(m => {
-        if (ativo) m.addTo(mapRastreio);
-        else mapRastreio.removeLayer(m);
-      });
-
       btn.classList.toggle('is-active', ativo);
+      syncLinhasVisiveisRastreio();
     }
 
     function centerMap() {
-      if (!mapRastreio) return;
-
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          pos => mapRastreio.setView([pos.coords.latitude, pos.coords.longitude], 15),
-          () => mapRastreio.setView([-22.9549, -43.1687], 14)
-        );
-      } else {
-        mapRastreio.setView([-22.9549, -43.1687], 14);
-      }
+      window.UnibusRastreio?.centerMap();
     }
 
     window.addEventListener('load', () => {

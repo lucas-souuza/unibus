@@ -294,12 +294,12 @@
                 <span class="tag">302</span>
               </button>
 
-              <button onclick="toggleLinha('415', this)" class="linha-btn">
+              <button onclick="toggleLinha('415', this)" class="linha-btn is-active">
                 <span>UNIRIO Tijuca</span>
                 <span class="tag" style="background:#27F5EB;">415</span>
               </button>
 
-              <button onclick="toggleLinha('108', this)" class="linha-btn">
+              <button onclick="toggleLinha('108', this)" class="linha-btn is-active">
                 <span>Zona Norte</span>
                 <span class="tag" style="background:#111;color:#fff;">108</span>
               </button>
@@ -655,6 +655,8 @@
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <link rel="stylesheet" th:href="@{/dist/rastreio/rastreio.css}" href="/dist/rastreio/rastreio.css" />
+  <script type="module" th:src="@{/dist/rastreio/rastreio.js}" src="/dist/rastreio/rastreio.js"></script>
   <script th:src="@{/js/index.js}" src="/js/index.js"></script>
 
   <script th:inline="javascript">
