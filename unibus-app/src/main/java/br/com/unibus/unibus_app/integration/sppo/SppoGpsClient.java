@@ -1,72 +1,45 @@
 package br.com.unibus.unibus_app.integration.sppo;
 
 import br.com.unibus.unibus_app.integration.sppo.dto.SppoGpsPosition;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.core.ParameterizedTypeReference;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-/**
- * Cliente HTTP para a API de GPS do SPPO.
- * Documentação: https://dados.mobilidade.rio/gps/sppo
- */
 @Component
+@RequiredArgsConstructor
 public class SppoGpsClient {
 
-    private static final DateTimeFormatter API_DATE_TIME =
+    private static final DateTimeFormatter FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    private static final ParameterizedTypeReference<List<SppoGpsPosition>> POSITION_LIST =
-            new ParameterizedTypeReference<>() {};
-
-    private final RestClient sppoRestClient;
+    private final RestClient restClient;
     private final SppoGpsProperties properties;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public SppoGpsClient(
-            @Qualifier("sppoRestClient") RestClient sppoRestClient,
-            SppoGpsProperties properties) {
-        this.sppoRestClient = sppoRestClient;
-        this.properties = properties;
-    }
-
-    /**
-     * Consulta posições GPS no intervalo informado.
-     *
-     * @param dataInicial início do intervalo (inclusivo), formato exigido pela API
-     * @param dataFinal   fim do intervalo (inclusivo), formato exigido pela API
-     * @return lista de posições; vazia se a API não retornar registros
-     */
     public List<SppoGpsPosition> buscarPosicoes(LocalDateTime dataInicial, LocalDateTime dataFinal) {
-        String uri = UriComponentsBuilder
-                .fromPath(properties.getGpsPath())
-                .queryParam("dataInicial", formatarParametroData(dataInicial))
-                .queryParam("dataFinal", formatarParametroData(dataFinal))
-                .build()
-                .encode()
-                .toUriString();
-
         try {
-            List<SppoGpsPosition> resposta = sppoRestClient
-                    .get()
-                    .uri(uri)
+            String resposta = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path(properties.getGpsPath())
+                            .queryParam("dataInicial", dataInicial.format(FORMATTER))
+                            .queryParam("dataFinal", dataFinal.format(FORMATTER))
+                            .build())
                     .retrieve()
-                    .body(POSITION_LIST);
+                    .body(String.class);
 
-            return resposta != null ? resposta : List.of();
-        } catch (RestClientException ex) {
-            throw new SppoGpsException(
-                    "Falha ao consultar API SPPO GPS entre %s e %s".formatted(dataInicial, dataFinal),
-                    ex);
+            return objectMapper.readValue(
+                    resposta,
+                    new TypeReference<List<SppoGpsPosition>>() {}
+            );
+
+        } catch (Exception ex) {
+            throw new SppoGpsException("Falha ao consultar API SPPO", ex);
         }
-    }
-
-    private static String formatarParametroData(LocalDateTime dataHora) {
-        return API_DATE_TIME.format(dataHora);
     }
 }

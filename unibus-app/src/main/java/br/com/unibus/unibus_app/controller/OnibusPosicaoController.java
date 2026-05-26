@@ -28,7 +28,12 @@ public class OnibusPosicaoController {
 
     @ExceptionHandler(SppoGpsException.class)
     public ResponseEntity<Map<String, String>> handleSppo(SppoGpsException ex) {
+        ex.printStackTrace();
+
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(Map.of("message", "Falha ao consultar dados de GPS em tempo real"));
+                .body(Map.of(
+                        "message", "Falha ao consultar dados de GPS em tempo real",
+                        "cause", ex.getCause() != null ? ex.getCause().toString() : "sem causa"
+                ));
     }
 }
