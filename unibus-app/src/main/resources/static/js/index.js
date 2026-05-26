@@ -231,3 +231,628 @@ lucide.createIcons();
         menu.classList.remove('open');
       }
     });
+
+    // Ocorrências
+    const ocorrenciasTipos = {
+      superlotacao: { label: 'Superlotação', icon: 'users' },
+      atraso: { label: 'Atraso', icon: 'clock-3' },
+      acidente: { label: 'Acidente', icon: 'triangle-alert' },
+      interrupcao: { label: 'Interrupção de trajeto', icon: 'route-off' }
+    };
+
+    const ocorrenciasSection = document.getElementById('ocorrencias');
+    const usuarioLogadoOcorrencias = ocorrenciasSection?.dataset.usuarioLogado === 'true';
+    const linhaBuscaInput = document.getElementById('ocorrencia-linha-busca');
+    const linhaResultadosEl = document.getElementById('ocorrencia-linha-resultados');
+    const linhaStatusEl = document.getElementById('ocorrencia-linha-status');
+    const linhaSelecionadaEl = document.getElementById('ocorrencia-linha-selecionada');
+
+    let ocorrenciaLinhaSelecionada = null;
+    let ocorrenciaTipoSelecionado = null;
+    let ocorrenciaToastTimer;
+    let ocorrenciaBuscaTimer;
+    let ocorrenciaBuscaSeq = 0;
+    let ocorrenciaResultadosAtuais = [];
+
+    function normalizarLinhaApi(linha) {
+      return {
+        idLinha: linha.idLinha ?? linha.id,
+        numeroLinha: String(linha.numeroLinha ?? '').trim(),
+        nomeLinha: linha.nomeLinha,
+        origem: linha.origem,
+        destino: linha.destino,
+        trajeto: linha.trajeto
+      };
+    }
+
+    function tituloLinhaOcorrencia(linha) {
+      const nome = linha.nomeLinha?.trim();
+      if (nome) {
+        return `Linha ${linha.numeroLinha} · ${nome}`;
+      }
+      return `Linha ${linha.numeroLinha}`;
+    }
+
+    function corBadgeLinha(numero) {
+      const cores = [
+        { bg: '#F5CF27', color: '#000' },
+        { bg: '#27F5EB', color: '#000' },
+        { bg: '#111', color: '#fff' }
+      ];
+      let hash = 0;
+      for (let i = 0; i < numero.length; i++) {
+        hash = (hash + numero.charCodeAt(i)) % cores.length;
+      }
+      return cores[hash];
+    }
+
+    function atualizarResumoOcorrencia() {
+      const resumoLinha = document.getElementById('ocorrencia-resumo-linha');
+      const resumoTrajeto = document.getElementById('ocorrencia-resumo-trajeto');
+      const resumoTipo = document.getElementById('ocorrencia-resumo-tipo');
+      const resumoDescricao = document.getElementById('ocorrencia-resumo-descricao');
+      const descricaoInput = document.getElementById('ocorrencia-descricao');
+      const enviarBtn = document.getElementById('ocorrencia-enviar');
+
+      if (resumoLinha && resumoTrajeto) {
+        if (ocorrenciaLinhaSelecionada) {
+          resumoLinha.textContent = tituloLinhaOcorrencia(ocorrenciaLinhaSelecionada);
+          resumoTrajeto.textContent = ocorrenciaLinhaSelecionada.trajeto || 'Trajeto não informado';
+          resumoTrajeto.classList.remove('muted');
+        } else {
+          resumoLinha.textContent = 'Nenhuma linha selecionada';
+          resumoTrajeto.textContent = 'Busque e escolha uma linha ao lado.';
+          resumoTrajeto.classList.add('muted');
+        }
+      }
+
+      if (resumoTipo) {
+        if (ocorrenciaTipoSelecionado && ocorrenciasTipos[ocorrenciaTipoSelecionado]) {
+          const tipo = ocorrenciasTipos[ocorrenciaTipoSelecionado];
+          resumoTipo.classList.add('is-ready');
+          resumoTipo.innerHTML = `<i data-lucide="${tipo.icon}" class="w-4 h-4"></i><span>${tipo.label}</span>`;
+        } else {
+          resumoTipo.classList.remove('is-ready');
+          resumoTipo.innerHTML = '<i data-lucide="clipboard-list" class="w-4 h-4"></i><span>Selecione um tipo de ocorrência</span>';
+        }
+        lucide.createIcons();
+      }
+
+      if (resumoDescricao && descricaoInput) {
+        const texto = descricaoInput.value.trim();
+        resumoDescricao.textContent = texto || 'Nenhuma descrição adicionada.';
+        resumoDescricao.classList.toggle('muted', !texto);
+      }
+
+      if (enviarBtn) {
+        enviarBtn.disabled = !ocorrenciaTipoSelecionado || !ocorrenciaLinhaSelecionada;
+      }
+    }
+
+    function renderizarLinhaSelecionada() {
+      if (!linhaSelecionadaEl) return;
+
+      if (!ocorrenciaLinhaSelecionada) {
+        linhaSelecionadaEl.hidden = true;
+        if (linhaBuscaInput) {
+          linhaBuscaInput.disabled = false;
+        }
+        return;
+      }
+
+      const linha = ocorrenciaLinhaSelecionada;
+      const badge = document.getElementById('ocorrencia-linha-badge');
+      const titulo = document.getElementById('ocorrencia-linha-titulo');
+      const trajeto = document.getElementById('ocorrencia-linha-trajeto');
+
+      if (badge) {
+        const cor = corBadgeLinha(linha.numeroLinha);
+        badge.textContent = linha.numeroLinha;
+        badge.style.background = cor.bg;
+        badge.style.color = cor.color;
+      }
+      if (titulo) titulo.textContent = tituloLinhaOcorrencia(linha);
+      if (trajeto) trajeto.textContent = linha.trajeto || 'Trajeto não informado';
+
+      linhaSelecionadaEl.hidden = false;
+      if (linhaBuscaInput) {
+        linhaBuscaInput.value = '';
+        linhaBuscaInput.disabled = true;
+      }
+      fecharResultadosLinha();
+      atualizarResumoOcorrencia();
+    }
+
+    function fecharResultadosLinha() {
+      if (!linhaResultadosEl || !linhaBuscaInput) return;
+      linhaResultadosEl.hidden = true;
+      linhaBuscaInput.setAttribute('aria-expanded', 'false');
+      ocorrenciaResultadosAtuais = [];
+    }
+
+    function definirStatusLinha(mensagem) {
+      if (linhaStatusEl) linhaStatusEl.textContent = mensagem;
+    }
+
+    function renderizarResultadosLinha(linhas) {
+      if (!linhaResultadosEl) return;
+
+      ocorrenciaResultadosAtuais = linhas.map(normalizarLinhaApi);
+
+      if (!ocorrenciaResultadosAtuais.length) {
+        linhaResultadosEl.innerHTML = '<div class="ocorrencia-linha-resultado-vazio">Nenhuma linha encontrada.</div>';
+      } else {
+        linhaResultadosEl.innerHTML = ocorrenciaResultadosAtuais.map((linha, index) => {
+          const cor = corBadgeLinha(linha.numeroLinha);
+          const titulo = tituloLinhaOcorrencia(linha);
+          const trajeto = linha.trajeto || 'Trajeto não informado';
+          return `
+            <button
+              type="button"
+              class="ocorrencia-linha-opcao${index === 0 ? ' is-highlighted' : ''}"
+              role="option"
+              data-numero-linha="${linha.numeroLinha}">
+              <span class="linha-badge" style="background:${cor.bg};color:${cor.color};">${linha.numeroLinha}</span>
+              <span class="ocorrencia-linha-opcao-copy">
+                <strong>${titulo}</strong>
+                <span>${trajeto}</span>
+              </span>
+            </button>
+          `;
+        }).join('');
+
+        linhaResultadosEl.querySelectorAll('.ocorrencia-linha-opcao').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const linha = ocorrenciaResultadosAtuais.find(
+              item => item.numeroLinha === btn.dataset.numeroLinha
+            );
+            if (linha) selecionarLinhaOcorrencia(linha);
+          });
+        });
+      }
+
+      linhaResultadosEl.hidden = false;
+      if (linhaBuscaInput) linhaBuscaInput.setAttribute('aria-expanded', 'true');
+      lucide.createIcons();
+    }
+
+    async function buscarLinhasOcorrencia(termo) {
+      const seq = ++ocorrenciaBuscaSeq;
+
+      if (!usuarioLogadoOcorrencias) {
+        definirStatusLinha('Faça login para buscar linhas cadastradas.');
+        fecharResultadosLinha();
+        return;
+      }
+
+      if (!termo) {
+        definirStatusLinha('Digite para buscar nas linhas cadastradas no sistema.');
+        fecharResultadosLinha();
+        return;
+      }
+
+      definirStatusLinha('Buscando linhas...');
+
+      try {
+        const params = new URLSearchParams({ q: termo, limit: '12' });
+        const response = await fetch(`/api/linhas?${params.toString()}`, {
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' }
+        });
+
+        if (seq !== ocorrenciaBuscaSeq) return;
+
+        if (response.status === 401 || response.status === 403) {
+          definirStatusLinha('Faça login para buscar linhas cadastradas.');
+          fecharResultadosLinha();
+          return;
+        }
+
+        if (!response.ok) {
+          definirStatusLinha('Não foi possível buscar linhas. Tente novamente.');
+          fecharResultadosLinha();
+          return;
+        }
+
+        const linhas = await response.json();
+        definirStatusLinha(linhas.length
+          ? `${linhas.length} resultado(s). Clique para selecionar.`
+          : 'Nenhuma linha encontrada para essa busca.');
+        renderizarResultadosLinha(linhas);
+      } catch (err) {
+        if (seq !== ocorrenciaBuscaSeq) return;
+        definirStatusLinha('Erro de conexão ao buscar linhas.');
+        fecharResultadosLinha();
+      }
+    }
+
+    function agendarBuscaLinha() {
+      clearTimeout(ocorrenciaBuscaTimer);
+      const termo = linhaBuscaInput?.value.trim() || '';
+      ocorrenciaBuscaTimer = setTimeout(() => buscarLinhasOcorrencia(termo), 280);
+    }
+
+    function selecionarLinhaOcorrencia(linha) {
+      ocorrenciaLinhaSelecionada = normalizarLinhaApi(linha);
+      renderizarLinhaSelecionada();
+      definirStatusLinha('Linha selecionada. Você pode trocar a qualquer momento.');
+    }
+
+    function limparLinhaOcorrencia() {
+      ocorrenciaLinhaSelecionada = null;
+      renderizarLinhaSelecionada();
+      definirStatusLinha(usuarioLogadoOcorrencias
+        ? 'Digite para buscar nas linhas cadastradas no sistema.'
+        : 'Faça login para buscar linhas cadastradas.');
+      if (linhaBuscaInput) {
+        linhaBuscaInput.focus();
+      }
+    }
+
+    function selecionarTipoOcorrencia(tipo, btn) {
+      ocorrenciaTipoSelecionado = tipo;
+      document.querySelectorAll('.ocorrencia-tipo-btn').forEach(el => {
+        const ativo = el === btn;
+        el.classList.toggle('is-active', ativo);
+        el.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+      });
+      atualizarResumoOcorrencia();
+    }
+
+    function csrfHeadersJson() {
+      const token = document.getElementById('csrf-token')?.content;
+      const header = document.getElementById('csrf-header')?.content;
+      const headers = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      };
+      if (token && header) {
+        headers[header] = token;
+      }
+      return headers;
+    }
+
+    function resetarFormularioOcorrencia() {
+      ocorrenciaTipoSelecionado = null;
+      document.querySelectorAll('.ocorrencia-tipo-btn').forEach(el => {
+        el.classList.remove('is-active');
+        el.setAttribute('aria-pressed', 'false');
+      });
+      const descricaoInput = document.getElementById('ocorrencia-descricao');
+      if (descricaoInput) descricaoInput.value = '';
+      limparLinhaOcorrencia();
+    }
+
+    function mostrarToastOcorrencia(mensagem) {
+      const toast = document.getElementById('ocorrencia-toast');
+      const texto = document.getElementById('ocorrencia-toast-text');
+      if (!toast || !texto) return;
+
+      texto.textContent = mensagem;
+      toast.hidden = false;
+      toast.classList.add('is-visible');
+      lucide.createIcons();
+
+      clearTimeout(ocorrenciaToastTimer);
+      ocorrenciaToastTimer = setTimeout(() => {
+        toast.classList.remove('is-visible');
+        setTimeout(() => {
+          toast.hidden = true;
+        }, 220);
+      }, 3200);
+    }
+
+    async function enviarOcorrencia() {
+      if (!ocorrenciaTipoSelecionado || !ocorrenciaLinhaSelecionada) return;
+
+      const linha = ocorrenciaLinhaSelecionada;
+      const tipo = ocorrenciasTipos[ocorrenciaTipoSelecionado];
+      const descricao = document.getElementById('ocorrencia-descricao')?.value.trim() || '';
+      const enviarBtn = document.getElementById('ocorrencia-enviar');
+      const textoOriginal = enviarBtn?.textContent;
+
+      if (!usuarioLogadoOcorrencias) {
+        mostrarToastOcorrencia('Faça login para registrar uma ocorrência.');
+        return;
+      }
+
+      if (enviarBtn) {
+        enviarBtn.disabled = true;
+        enviarBtn.textContent = 'Registrando...';
+      }
+
+      try {
+        const response = await fetch('/api/ocorrencias', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: csrfHeadersJson(),
+          body: JSON.stringify({
+            numeroLinha: linha.numeroLinha,
+            tipo: ocorrenciaTipoSelecionado,
+            descricao: descricao || null
+          })
+        });
+
+        if (response.status === 401 || response.status === 403) {
+          mostrarToastOcorrencia('Faça login para registrar uma ocorrência.');
+          return;
+        }
+
+        if (!response.ok) {
+          let mensagem = 'Não foi possível registrar a ocorrência.';
+          try {
+            const erro = await response.json();
+            if (erro?.message) mensagem = erro.message;
+          } catch (_) { /* resposta sem JSON */ }
+          mostrarToastOcorrencia(mensagem);
+          return;
+        }
+
+        mostrarToastOcorrencia(
+          `${tipo.label} registrada na ${tituloLinhaOcorrencia(linha)}.`
+        );
+        resetarFormularioOcorrencia();
+      } catch (_) {
+        mostrarToastOcorrencia('Erro de conexão ao registrar a ocorrência.');
+      } finally {
+        if (enviarBtn) {
+          enviarBtn.textContent = textoOriginal || 'Registrar ocorrência';
+          atualizarResumoOcorrencia();
+        }
+      }
+    }
+
+    linhaBuscaInput?.addEventListener('input', agendarBuscaLinha);
+    linhaBuscaInput?.addEventListener('focus', () => {
+      const termo = linhaBuscaInput.value.trim();
+      if (termo) agendarBuscaLinha();
+    });
+
+    document.getElementById('ocorrencia-linha-limpar')?.addEventListener('click', limparLinhaOcorrencia);
+
+    document.addEventListener('click', event => {
+      const wrap = document.querySelector('.ocorrencia-linha-search-wrap');
+      if (wrap && !wrap.contains(event.target)) {
+        fecharResultadosLinha();
+      }
+    });
+
+    document.querySelectorAll('.ocorrencia-tipo-btn').forEach(btn => {
+      btn.addEventListener('click', () => selecionarTipoOcorrencia(btn.dataset.tipo, btn));
+    });
+
+    document.getElementById('ocorrencia-descricao')?.addEventListener('input', atualizarResumoOcorrencia);
+    document.getElementById('ocorrencia-enviar')?.addEventListener('click', enviarOcorrencia);
+
+    if (!usuarioLogadoOcorrencias && linhaBuscaInput) {
+      linhaBuscaInput.disabled = true;
+      linhaBuscaInput.placeholder = 'Faça login para buscar linhas';
+      definirStatusLinha('Faça login para buscar linhas cadastradas.');
+    }
+
+    atualizarResumoOcorrencia();
+
+    // Rotas
+    const rotasSection = document.getElementById('rotas');
+    const usuarioLogadoRotas = rotasSection?.dataset.usuarioLogado === 'true';
+    const rotaOrigemInput = document.getElementById('rota-origem');
+    const rotaDestinoInput = document.getElementById('rota-destino');
+    const rotaDescricaoInput = document.getElementById('rota-descricao-input');
+    const rotaOrigemSugestoes = document.getElementById('rota-origem-sugestoes');
+    const rotaDestinoSugestoes = document.getElementById('rota-destino-sugestoes');
+    const rotaCompartilharBtn = document.getElementById('rota-compartilhar');
+
+    let rotaOrigemTimer;
+    let rotaDestinoTimer;
+    let rotaOrigemSeq = 0;
+    let rotaDestinoSeq = 0;
+    let rotaToastTimer;
+
+    function obterValoresRota() {
+      return {
+        origem: rotaOrigemInput?.value.trim() || '',
+        destino: rotaDestinoInput?.value.trim() || '',
+        descricao: rotaDescricaoInput?.value.trim() || ''
+      };
+    }
+
+    function atualizarResumoRota() {
+      const { origem, destino, descricao } = obterValoresRota();
+      const resumoOrigem = document.getElementById('rota-resumo-origem');
+      const resumoDestino = document.getElementById('rota-resumo-destino');
+      const resumoDescricao = document.getElementById('rota-resumo-descricao');
+
+      if (resumoOrigem) resumoOrigem.textContent = origem || '—';
+      if (resumoDestino) resumoDestino.textContent = destino || '—';
+      if (resumoDescricao) {
+        resumoDescricao.textContent = descricao || 'Descreva acima como você faz esse trajeto no dia a dia.';
+        resumoDescricao.classList.toggle('muted', !descricao);
+        resumoDescricao.classList.toggle('is-ready', !!descricao);
+      }
+
+      if (rotaCompartilharBtn) {
+        rotaCompartilharBtn.disabled = !origem || !destino || !descricao;
+      }
+    }
+
+    function fecharSugestoesRota(tipo) {
+      const isOrigem = tipo === 'origem';
+      const sugestoes = isOrigem ? rotaOrigemSugestoes : rotaDestinoSugestoes;
+      const input = isOrigem ? rotaOrigemInput : rotaDestinoInput;
+      if (sugestoes) sugestoes.hidden = true;
+      if (input) input.setAttribute('aria-expanded', 'false');
+    }
+
+    function renderizarSugestoesRota(tipo, localidades) {
+      const isOrigem = tipo === 'origem';
+      const sugestoes = isOrigem ? rotaOrigemSugestoes : rotaDestinoSugestoes;
+      const input = isOrigem ? rotaOrigemInput : rotaDestinoInput;
+      if (!sugestoes) return;
+
+      sugestoes.innerHTML = '';
+
+      if (!localidades.length) {
+        sugestoes.hidden = true;
+        return;
+      }
+
+      localidades.forEach(local => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'rota-local-opcao';
+        btn.setAttribute('role', 'option');
+        btn.textContent = local;
+        btn.addEventListener('click', () => {
+          if (input) input.value = local;
+          fecharSugestoesRota(tipo);
+          atualizarResumoRota();
+          input?.focus();
+        });
+        sugestoes.appendChild(btn);
+      });
+
+      sugestoes.hidden = false;
+      if (input) input.setAttribute('aria-expanded', 'true');
+    }
+
+    async function buscarSugestoesRota(tipo, termo) {
+      const seq = tipo === 'origem' ? ++rotaOrigemSeq : ++rotaDestinoSeq;
+
+      if (!termo) {
+        fecharSugestoesRota(tipo);
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams({ q: termo, tipo });
+        const response = await fetch(`/api/rotas/localidades?${params.toString()}`, {
+          headers: { Accept: 'application/json' }
+        });
+
+        if ((tipo === 'origem' && seq !== rotaOrigemSeq) || (tipo === 'destino' && seq !== rotaDestinoSeq)) {
+          return;
+        }
+
+        if (!response.ok) {
+          fecharSugestoesRota(tipo);
+          return;
+        }
+
+        const localidades = await response.json();
+        renderizarSugestoesRota(tipo, localidades);
+      } catch (_) {
+        fecharSugestoesRota(tipo);
+      }
+    }
+
+    function agendarSugestoesRota(tipo) {
+      const input = tipo === 'origem' ? rotaOrigemInput : rotaDestinoInput;
+      if (tipo === 'origem') {
+        clearTimeout(rotaOrigemTimer);
+        rotaOrigemTimer = setTimeout(() => {
+          buscarSugestoesRota('origem', input?.value.trim() || '');
+        }, 280);
+      } else {
+        clearTimeout(rotaDestinoTimer);
+        rotaDestinoTimer = setTimeout(() => {
+          buscarSugestoesRota('destino', input?.value.trim() || '');
+        }, 280);
+      }
+      atualizarResumoRota();
+    }
+
+    function mostrarToastRota(mensagem) {
+      const toast = document.getElementById('rota-toast');
+      const texto = document.getElementById('rota-toast-text');
+      if (!toast || !texto) return;
+
+      texto.textContent = mensagem;
+      toast.hidden = false;
+      toast.classList.add('is-visible');
+      lucide.createIcons();
+
+      clearTimeout(rotaToastTimer);
+      rotaToastTimer = setTimeout(() => {
+        toast.classList.remove('is-visible');
+        setTimeout(() => {
+          toast.hidden = true;
+        }, 220);
+      }, 3200);
+    }
+
+    function resetarFormularioRota() {
+      if (rotaOrigemInput) rotaOrigemInput.value = '';
+      if (rotaDestinoInput) rotaDestinoInput.value = '';
+      if (rotaDescricaoInput) rotaDescricaoInput.value = '';
+      fecharSugestoesRota('origem');
+      fecharSugestoesRota('destino');
+      atualizarResumoRota();
+    }
+
+    async function compartilharRota() {
+      const { origem, destino, descricao } = obterValoresRota();
+      if (!origem || !destino || !descricao) return;
+
+      if (!usuarioLogadoRotas) {
+        mostrarToastRota('Faça login para compartilhar uma rota.');
+        return;
+      }
+
+      const textoOriginal = rotaCompartilharBtn?.textContent;
+      if (rotaCompartilharBtn) {
+        rotaCompartilharBtn.disabled = true;
+        rotaCompartilharBtn.textContent = 'Salvando...';
+      }
+
+      try {
+        const response = await fetch('/api/rotas', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: csrfHeadersJson(),
+          body: JSON.stringify({ origem, destino, descricao })
+        });
+
+        if (response.status === 401 || response.status === 403) {
+          mostrarToastRota('Faça login para compartilhar uma rota.');
+          return;
+        }
+
+        if (!response.ok) {
+          let mensagem = 'Não foi possível salvar a rota.';
+          try {
+            const erro = await response.json();
+            if (erro?.message) mensagem = erro.message;
+          } catch (_) { /* ignore */ }
+          mostrarToastRota(mensagem);
+          return;
+        }
+
+        mostrarToastRota('Rota compartilhada com sucesso.');
+        resetarFormularioRota();
+      } catch (_) {
+        mostrarToastRota('Erro de conexão ao salvar a rota.');
+      } finally {
+        if (rotaCompartilharBtn) {
+          rotaCompartilharBtn.textContent = textoOriginal || 'Compartilhar rota';
+          atualizarResumoRota();
+        }
+      }
+    }
+
+    rotaOrigemInput?.addEventListener('input', () => agendarSugestoesRota('origem'));
+    rotaDestinoInput?.addEventListener('input', () => agendarSugestoesRota('destino'));
+    rotaDescricaoInput?.addEventListener('input', atualizarResumoRota);
+    rotaCompartilharBtn?.addEventListener('click', compartilharRota);
+
+    document.addEventListener('click', event => {
+      const origemWrap = rotaOrigemInput?.closest('.rota-local-search-wrap');
+      const destinoWrap = rotaDestinoInput?.closest('.rota-local-search-wrap');
+      if (origemWrap && !origemWrap.contains(event.target)) fecharSugestoesRota('origem');
+      if (destinoWrap && !destinoWrap.contains(event.target)) fecharSugestoesRota('destino');
+    });
+
+    if (!usuarioLogadoRotas && rotaCompartilharBtn) {
+      rotaCompartilharBtn.title = 'Faça login para compartilhar';
+    }
+
+    atualizarResumoRota();

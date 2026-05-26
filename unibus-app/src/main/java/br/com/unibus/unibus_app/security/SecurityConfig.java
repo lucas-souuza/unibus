@@ -23,7 +23,8 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login", "/cadastro", "/css/**", "/js/**", "/dist/**", "/images/**", "/").permitAll()
-                        .requestMatchers("/api/onibus/**").authenticated()
+                        .requestMatchers("/api/rotas/localidades").permitAll()
+                        .requestMatchers("/api/onibus/**", "/api/linhas/**", "/api/ocorrencias/**", "/api/rotas/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
