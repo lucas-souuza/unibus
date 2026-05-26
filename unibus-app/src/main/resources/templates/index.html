@@ -300,31 +300,13 @@
           </div>
 
           <div class="map-floating map-filters">
-            <div class="title">Linhas visíveis</div>
             <div class="linha-stack">
-              <button onclick="toggleLinha('302', this)" class="linha-btn is-active">
-                <span>UNIRIO Centro</span>
-                <span class="tag">302</span>
-              </button>
-
-              <button onclick="toggleLinha('415', this)" class="linha-btn is-active">
-                <span>UNIRIO Tijuca</span>
-                <span class="tag" style="background:#27F5EB;">415</span>
-              </button>
-
-              <button onclick="toggleLinha('108', this)" class="linha-btn is-active">
-                <span>Zona Norte</span>
-                <span class="tag" style="background:#111;color:#fff;">108</span>
-              </button>
+              <button onclick="toggleLinha(302, this)" class="linha-btn is-active" aria-label="Alternar linha 302">302</button>
+              <button onclick="toggleLinha(415, this)" class="linha-btn is-active" aria-label="Alternar linha 415">415</button>
+              <button onclick="toggleLinha(108, this)" class="linha-btn is-active" aria-label="Alternar linha 108">108</button>
             </div>
           </div>
-
-          <div class="map-floating map-summary">
-            <p class="eyebrow">Linha em destaque</p>
-            <h3 th:text="${proximaLinhaTitulo != null ? proximaLinhaTitulo : 'Linha 302 · UNIRIO Centro'}">Linha 302 · UNIRIO Centro</h3>
-            <p>Visualização em mapa com foco em tomada de decisão rápida, atraso operacional e leitura clara da posição dos ônibus.</p>
           </div>
-        </div>
       </section>
 
       <!-- OCORRÊNCIAS -->

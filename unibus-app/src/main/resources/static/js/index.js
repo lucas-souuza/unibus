@@ -1,107 +1,127 @@
 lucide.createIcons();
 
-    window.addEventListener('load', () => {
-      const title = document.getElementById('logo-title');
-      const line = document.getElementById('logo-line');
-      title.style.opacity = '0';
-      title.style.transform = 'translateY(6px)';
-      title.style.transition = 'opacity 0.55s ease, transform 0.55s ease';
+const tabs = document.querySelectorAll('.tab-btn');
+const pages = document.querySelectorAll('.page');
 
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          title.style.opacity = '1';
-          title.style.transform = 'translateY(0)';
-        }, 120);
-        setTimeout(() => {
-          line.style.width = '54px';
-        }, 420);
-      });
-    });
+let map;
+const linhasVisiveis = { '302': true, '415': true, '108': true };
+let currentPage = 'home';
 
-    const tabs = document.querySelectorAll('.tab-btn');
-    const pages = document.querySelectorAll('.page');
+window.addEventListener('load', () => {
+  const title = document.getElementById('logo-title');
+  const line = document.getElementById('logo-line');
 
-    let map;
-    const linhasVisiveis = { '302': true, '415': true, '108': true };
+  if (title) {
+    title.style.opacity = '0';
+    title.style.transform = 'translateY(6px)';
+    title.style.transition = 'opacity 0.55s ease, transform 0.55s ease';
+  }
 
-    let currentPage = 'home';
-
-    function showPage(target) {
-      if (currentPage === 'rastreio' && target !== 'rastreio') {
-        window.UnibusRastreio?.setActive(false);
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      if (title) {
+        title.style.opacity = '1';
+        title.style.transform = 'translateY(0)';
       }
+    }, 120);
 
-      pages.forEach(page => page.classList.remove('active'));
-      const page = document.getElementById(target);
-      if (page) page.classList.add('active');
-
-      tabs.forEach(tab => tab.classList.remove('is-active'));
-      const activeTab = document.querySelector(`.tab-btn[data-target="${target}"]`);
-      if (activeTab) activeTab.classList.add('is-active');
-
-      if (target === 'home') {
-        setTimeout(() => {
-          initMap();
-          map && map.invalidateSize();
-        }, 150);
+    setTimeout(() => {
+      if (line) {
+        line.style.width = '54px';
       }
+    }, 420);
+  });
 
-      if (target === 'rastreio') {
-        setTimeout(() => {
-          initMapRastreio();
-        }, 150);
-      }
+  setTimeout(() => {
+    showPage('home');
+  }, 180);
+});
 
-      currentPage = target;
-    }
+function showPage(target) {
+  if (currentPage === 'rastreio' && target !== 'rastreio') {
+    window.UnibusRastreio?.setActive(false);
+  }
 
-    tabs.forEach(btn => {
-      btn.addEventListener('click', () => showPage(btn.dataset.target));
-    });
+  document.body.dataset.page = target;
 
-    function initMap() {
-      if (map) return;
+  pages.forEach(page => page.classList.remove('active'));
+  const page = document.getElementById(target);
+  if (page) page.classList.add('active');
 
-      map = L.map('map', { zoomControl: false }).setView([-22.95489809881098, -43.168709766376395], 15);
+  tabs.forEach(tab => tab.classList.remove('is-active'));
+  const activeTab = document.querySelector(`.tab-btn[data-target="${target}"]`);
+  if (activeTab) activeTab.classList.add('is-active');
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap &copy; CARTO'
-      }).addTo(map);
+  if (target === 'home') {
+    setTimeout(() => {
+      initMap();
+      if (map) map.invalidateSize();
+    }, 150);
+  }
 
-      L.marker([-22.95489809881098, -43.168709766376395])
-        .addTo(map)
-        .bindPopup('<b>UNIRIO</b><br>Av. Pasteur, 458 — Botafogo')
-        .openPopup();
-    }
+  if (target === 'rastreio') {
+    setTimeout(() => {
+      initMapRastreio();
+      window.UnibusRastreio?.centerMap?.();
+    }, 180);
+  }
 
-    function initMapRastreio() {
-      if (!window.UnibusRastreio) return;
-      window.UnibusRastreio.mount();
-      window.UnibusRastreio.setActive(true);
-      syncLinhasVisiveisRastreio();
-    }
+  currentPage = target;
+}
 
-    function syncLinhasVisiveisRastreio() {
-      window.UnibusRastreio?.setVisibleLines({ ...linhasVisiveis });
-    }
+tabs.forEach(btn => {
+  btn.addEventListener('click', () => {
+    showPage(btn.dataset.target);
+  });
+});
 
-    function toggleLinha(linha, btn) {
-      linhasVisiveis[linha] = !linhasVisiveis[linha];
-      const ativo = linhasVisiveis[linha];
-      btn.classList.toggle('is-active', ativo);
-      syncLinhasVisiveisRastreio();
-    }
+function initMap() {
+  if (map) return;
 
-    function centerMap() {
-      window.UnibusRastreio?.centerMap();
-    }
+  map = L.map('map', { zoomControl: false }).setView(
+    [-22.95489809881098, -43.168709766376395],
+    15
+  );
 
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        showPage(initialPage || 'home');
-      }, 180);
-    });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO'
+  }).addTo(map);
 
+  L.marker([-22.95489809881098, -43.168709766376395])
+    .addTo(map)
+    .bindPopup('<b>UNIRIO</b><br>Av. Pasteur, 458 — Botafogo')
+    .openPopup();
+}
+
+function initMapRastreio() {
+  if (!window.UnibusRastreio) return;
+  window.UnibusRastreio.mount();
+  window.UnibusRastreio.setActive(true);
+  syncLinhasVisiveisRastreio();
+}
+
+function syncLinhasVisiveisRastreio() {
+  window.UnibusRastreio?.setVisibleLines({ ...linhasVisiveis });
+}
+
+function toggleLinha(linha, btn) {
+  linhasVisiveis[linha] = !linhasVisiveis[linha];
+  const ativo = linhasVisiveis[linha];
+  btn.classList.toggle('is-active', ativo);
+  syncLinhasVisiveisRastreio();
+}
+
+function centerMap() {
+  if (!window.UnibusRastreio || typeof window.UnibusRastreio.centerMap !== 'function') {
+    initMapRastreio();
+    setTimeout(() => {
+      window.UnibusRastreio?.centerMap?.();
+    }, 120);
+    return;
+  }
+
+  window.UnibusRastreio.centerMap();
+}
     // Reviews
     const reviewsData = {
       '302': {
