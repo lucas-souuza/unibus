@@ -275,9 +275,10 @@
       <section id="rastreio" class="page page-rastreio">
         <div class="rastreio-head">
           <div>
-            <h2 style="margin:0;font-size:2rem;font-weight:800;line-height:1.1;">Rastreio ao vivo</h2>
-            <p style="margin:6px 0 0;font-size:0.95rem;color:var(--muted);">Mapa ampliado para acompanhamento operacional das linhas</p>
+            <h2 class="rastreio-title">Rastreio ao vivo</h2>
+            <p class="rastreio-subtitle">Mapa ampliado para acompanhamento operacional das linhas</p>
           </div>
+
           <button class="ghost-btn" type="button" onclick="centerMap()">
             <i data-lucide="locate-fixed" class="w-4 h-4"></i>
             <span>Centralizar</span>
@@ -288,27 +289,57 @@
           <div id="map-rastreio"></div>
 
           <div class="map-floating map-search">
-            <button class="icon-btn" type="button" aria-label="Buscar linha">
+            <button
+                    id="rastreio-busca-toggle"
+                    class="icon-btn"
+                    type="button"
+                    aria-label="Buscar linha"
+                    aria-expanded="false">
               <i data-lucide="search" class="w-4 h-4"></i>
             </button>
           </div>
 
+          <div id="rastreio-busca-panel" class="map-floating map-search-panel" hidden>
+            <div class="rastreio-linha-search-wrap">
+              <div class="rastreio-search-head">
+                <strong>Buscar linha</strong>
+                <button
+                        id="rastreio-busca-fechar"
+                        class="icon-btn"
+                        type="button"
+                        aria-label="Fechar busca">
+                  <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+              </div>
+
+              <input
+                      id="rastreio-linha-busca"
+                      type="text"
+                      placeholder="Ex.: 415, 302, 108"
+                      autocomplete="off"
+                      aria-expanded="false"
+              />
+
+              <div id="rastreio-linha-status" class="field-status">
+                Digite para buscar linhas cadastradas no sistema.
+              </div>
+
+              <div id="rastreio-linha-resultados" class="rastreio-resultados" hidden></div>
+            </div>
+          </div>
+
           <div class="map-floating map-center">
-            <button onclick="centerMap()" class="icon-btn" type="button" aria-label="Minha localização">
+            <button onclick="centerMap()" class="icon-btn" type="button" aria-label="Centralizar mapa">
               <i data-lucide="locate-fixed" class="w-4 h-4"></i>
             </button>
           </div>
 
-          <div class="map-floating map-filters">
-            <div class="linha-stack">
-              <button onclick="toggleLinha(302, this)" class="linha-btn is-active" aria-label="Alternar linha 302">302</button>
-              <button onclick="toggleLinha(415, this)" class="linha-btn is-active" aria-label="Alternar linha 415">415</button>
-              <button onclick="toggleLinha(108, this)" class="linha-btn is-active" aria-label="Alternar linha 108">108</button>
-            </div>
+          <div id="rastreio-linhas-selecionadas" class="map-floating rastreio-selected-stack">
+            <div class="rastreio-linhas-vazio">Nenhuma linha ativa</div>
           </div>
-          </div>
+        </div>
       </section>
-
+      
       <!-- OCORRÊNCIAS -->
       <section id="ocorrencias" class="page" th:attr="data-usuario-logado=${usuarioNome != null}">
         <div class="section-head">

@@ -4,7 +4,7 @@ const tabs = document.querySelectorAll('.tab-btn');
 const pages = document.querySelectorAll('.page');
 
 let map;
-const linhasVisiveis = { '302': true, '415': true, '108': true };
+const linhasVisiveis = {};
 let currentPage = 'home';
 
 window.addEventListener('load', () => {
@@ -104,13 +104,6 @@ function syncLinhasVisiveisRastreio() {
   window.UnibusRastreio?.setVisibleLines({ ...linhasVisiveis });
 }
 
-function toggleLinha(linha, btn) {
-  linhasVisiveis[linha] = !linhasVisiveis[linha];
-  const ativo = linhasVisiveis[linha];
-  btn.classList.toggle('is-active', ativo);
-  syncLinhasVisiveisRastreio();
-}
-
 function centerMap() {
   if (!window.UnibusRastreio || typeof window.UnibusRastreio.centerMap !== 'function') {
     initMapRastreio();
@@ -119,9 +112,237 @@ function centerMap() {
     }, 120);
     return;
   }
-
   window.UnibusRastreio.centerMap();
 }
+    const rastreioBuscaToggle = document.getElementById('rastreio-busca-toggle');
+    const rastreioBuscaPanel = document.getElementById('rastreio-busca-panel');
+    const rastreioBuscaFechar = document.getElementById('rastreio-busca-fechar');
+    const rastreioBuscaInput = document.getElementById('rastreio-linha-busca');
+    const rastreioResultadosEl = document.getElementById('rastreio-linha-resultados');
+    const rastreioStatusEl = document.getElementById('rastreio-linha-status');
+    const rastreioSelecionadasEl = document.getElementById('rastreio-linhas-selecionadas');
+
+    let rastreioBuscaTimer;
+    let rastreioBuscaSeq = 0;
+
+    function normalizarLinhaApiRastreio(linha) {
+      return {
+        idLinha: linha.idLinha ?? linha.id,
+        numeroLinha: String(linha.numeroLinha ?? '').trim(),
+        nomeLinha: linha.nomeLinha,
+        origem: linha.origem,
+        destino: linha.destino,
+        trajeto: linha.trajeto
+      };
+    }
+
+    function tituloLinhaBusca(linha) {
+      const nome = linha.nomeLinha?.trim();
+      return nome ? `Linha ${linha.numeroLinha} · ${nome}` : `Linha ${linha.numeroLinha}`;
+    }
+
+    async function buscarLinhasApiRastreio(termo, limit = 12) {
+      const q = termo?.trim();
+      if (!q) return [];
+
+      const params = new URLSearchParams({ q, limit: String(limit) });
+      const response = await fetch(`/api/linhas?${params.toString()}`, {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const linhas = await response.json();
+      return Array.isArray(linhas) ? linhas.map(normalizarLinhaApiRastreio) : [];
+    }
+
+    function definirStatusRastreio(msg) {
+      if (rastreioStatusEl) rastreioStatusEl.textContent = msg;
+    }
+
+    function abrirBuscaRastreio() {
+      if (!rastreioBuscaPanel) return;
+      rastreioBuscaPanel.hidden = false;
+      rastreioBuscaToggle?.setAttribute('aria-expanded', 'true');
+      setTimeout(() => rastreioBuscaInput?.focus(), 60);
+    }
+
+    function fecharBuscaRastreio() {
+      if (!rastreioBuscaPanel) return;
+      rastreioBuscaPanel.hidden = true;
+      rastreioBuscaToggle?.setAttribute('aria-expanded', 'false');
+      if (rastreioResultadosEl) rastreioResultadosEl.hidden = true;
+    }
+
+    function numeroLinhaAtivo(numeroLinha) {
+      return !!linhasVisiveis[String(numeroLinha).trim()];
+    }
+
+    function renderizarLinhasSelecionadasRastreio() {
+      if (!rastreioSelecionadasEl) return;
+
+      const selecionadas = Object.keys(linhasVisiveis);
+
+      if (!selecionadas.length) {
+        rastreioSelecionadasEl.innerHTML = `
+          <div class="rastreio-linhas-vazio">Nenhuma linha ativa</div>
+        `;
+        return;
+      }
+
+      rastreioSelecionadasEl.innerHTML = selecionadas.map(numero => `
+        <div class="rastreio-chip" data-linha-ativa="${numero}">
+          <span class="rastreio-chip-numero">${numero}</span>
+          <button
+            type="button"
+            class="rastreio-chip-remove"
+            data-remove-linha="${numero}"
+            aria-label="Remover linha ${numero}">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+      `).join('');
+
+      rastreioSelecionadasEl.querySelectorAll('[data-remove-linha]').forEach(btn => {
+        btn.addEventListener('click', () => removerLinhaRastreio(btn.dataset.removeLinha));
+      });
+
+      lucide.createIcons();
+    }
+
+    function adicionarLinhaRastreio(linha) {
+      const numero = String(linha.numeroLinha).trim();
+      linhasVisiveis[numero] = true;
+      renderizarLinhasSelecionadasRastreio();
+      syncLinhasVisiveisRastreio();
+      definirStatusRastreio(`Linha ${numero} adicionada ao mapa.`);
+
+      if (rastreioBuscaInput) rastreioBuscaInput.value = '';
+      if (rastreioResultadosEl) rastreioResultadosEl.hidden = true;
+    }
+    function adicionarLinhaRastreio(linha) {
+      const numero = String(linha.numeroLinha).trim();
+      linhasVisiveis[numero] = true;
+      renderizarLinhasSelecionadasRastreio();
+      syncLinhasVisiveisRastreio();
+      definirStatusRastreio(`Linha ${numero} adicionada ao mapa.`);
+
+      if (rastreioBuscaInput) {
+        rastreioBuscaInput.value = '';
+        rastreioBuscaInput.setAttribute('aria-expanded', 'false');
+      }
+
+      if (rastreioResultadosEl) {
+        rastreioResultadosEl.hidden = true;
+        rastreioResultadosEl.innerHTML = '';
+      }
+    }
+    function removerLinhaRastreio(numeroLinha) {
+      delete linhasVisiveis[String(numeroLinha).trim()];
+      renderizarLinhasSelecionadasRastreio();
+      syncLinhasVisiveisRastreio();
+      definirStatusRastreio(
+        Object.keys(linhasVisiveis).length
+          ? 'Filtro atualizado.'
+          : 'Nenhuma linha selecionada.'
+      );
+    }
+
+    function renderizarResultadosRastreio(linhas) {
+      if (!rastreioResultadosEl) return;
+
+      const disponiveis = linhas.filter(l => !numeroLinhaAtivo(l.numeroLinha));
+
+      if (!disponiveis.length) {
+        rastreioResultadosEl.innerHTML =
+          '<div class="ocorrencia-linha-resultado-vazio">Nenhuma linha disponível para adicionar.</div>';
+      } else {
+        rastreioResultadosEl.innerHTML = disponiveis.map((linha, index) => `
+          <button
+            type="button"
+            class="rastreio-linha-opcao${index === 0 ? ' is-highlighted' : ''}"
+            role="option"
+            data-numero-linha="${linha.numeroLinha}">
+            <span class="rastreio-linha-badge">${linha.numeroLinha}</span>
+            <span class="rastreio-linha-copy">
+              <strong>${tituloLinhaBusca(linha)}</strong>
+              <span>${linha.trajeto || 'Trajeto não informado'}</span>
+            </span>
+          </button>
+        `).join('');
+
+        rastreioResultadosEl.querySelectorAll('.rastreio-linha-opcao').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const linha = disponiveis.find(item => item.numeroLinha === btn.dataset.numeroLinha);
+            if (linha) adicionarLinhaRastreio(linha);
+          });
+        });
+      }
+
+      rastreioResultadosEl.hidden = false;
+      rastreioBuscaInput?.setAttribute('aria-expanded', 'true');
+    }
+
+    async function buscarLinhasRastreio(termo) {
+      const seq = ++rastreioBuscaSeq;
+
+      if (!termo) {
+        definirStatusRastreio('Digite para buscar uma linha no rastreio.');
+        if (rastreioResultadosEl) rastreioResultadosEl.hidden = true;
+        return;
+      }
+
+      definirStatusRastreio('Buscando linhas...');
+
+      try {
+        const linhas = await buscarLinhasApiRastreio(termo, 12);
+        if (seq !== rastreioBuscaSeq) return;
+
+        definirStatusRastreio(
+          linhas.length
+            ? `${linhas.length} resultado(s). Clique para adicionar ao mapa.`
+            : 'Nenhuma linha encontrada.'
+        );
+
+        renderizarResultadosRastreio(linhas);
+      } catch (err) {
+        if (seq !== rastreioBuscaSeq) return;
+        definirStatusRastreio(`Não foi possível buscar linhas (${err.message}).`);
+        if (rastreioResultadosEl) rastreioResultadosEl.hidden = true;
+      }
+    }
+
+    function agendarBuscaLinhaRastreio() {
+      clearTimeout(rastreioBuscaTimer);
+      const termo = rastreioBuscaInput?.value.trim() || '';
+      rastreioBuscaTimer = setTimeout(() => buscarLinhasRastreio(termo), 280);
+    }
+
+    rastreioBuscaToggle?.addEventListener('click', () => {
+      if (rastreioBuscaPanel?.hidden) abrirBuscaRastreio();
+      else fecharBuscaRastreio();
+    });
+
+    rastreioBuscaFechar?.addEventListener('click', fecharBuscaRastreio);
+    rastreioBuscaInput?.addEventListener('input', agendarBuscaLinhaRastreio);
+
+    document.addEventListener('click', event => {
+      const panel = document.getElementById('rastreio-busca-panel');
+      const toggle = document.getElementById('rastreio-busca-toggle');
+
+      if (
+        panel &&
+        !panel.hidden &&
+        !panel.contains(event.target) &&
+        toggle &&
+        !toggle.contains(event.target)
+      ) {
+        fecharBuscaRastreio();
+      }
+    });
+
+    renderizarLinhasSelecionadasRastreio();
     // Reviews
     const reviewsData = {
       '302': {
