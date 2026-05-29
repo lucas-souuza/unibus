@@ -1,6 +1,7 @@
 package br.com.unibus.unibus_app.controller;
 
 import br.com.unibus.unibus_app.model.Usuario;
+import br.com.unibus.unibus_app.service.OcorrenciaService;
 import br.com.unibus.unibus_app.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -11,26 +12,27 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.net.Authenticator;
-
 @Controller
 @RequiredArgsConstructor
 public class AuthViewController {
 
     private final UsuarioService service;
+    private final OcorrenciaService ocorrenciaService;
 
-    // Abre a página login.html
     @GetMapping("/login")
     public String loginPage() {
-        return "login";  // → templates/login.html
+        return "login";
     }
+
     @GetMapping("/cadastro")
     public String cadastroPage() {
         return "cadastro";
     }
-    // Abre a página index.html (protegida pelo Spring Security)
+
     @GetMapping("/")
     public String homePage(Authentication authentication, Model model) {
+        model.addAttribute("ocorrencias", ocorrenciaService.listarTodasPorRecencia());
+
         if (authentication != null
                 && authentication.isAuthenticated()
                 && !"anonymousUser".equals(authentication.getName())) {
@@ -44,17 +46,15 @@ public class AuthViewController {
             }
         }
 
-        return "index";  // → templates/index.html
+        return "index";
     }
 
-    // Recebe o form de cadastro do login.html
     @PostMapping("/cadastro")
     public String cadastrar(@RequestParam String nome,
                             @RequestParam String email,
                             @RequestParam String senha,
                             RedirectAttributes attrs) {
         try {
-            // Reutiliza o mesmo UsuarioService que a API já usa
             Usuario u = new Usuario();
             u.setNome(nome);
             u.setEmail(email);
@@ -67,6 +67,7 @@ public class AuthViewController {
             return "redirect:/login?tab=cadastro";
         }
     }
+
     private String gerarIniciais(String nome) {
         if (nome == null || nome.isBlank()) return "US";
 

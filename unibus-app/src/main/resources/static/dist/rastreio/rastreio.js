@@ -23,38 +23,73 @@ window.UnibusRastreio = (() => {
   }
 
   function renderMarkers(items) {
-    if (!map) return;
+      if (!map) return;
 
-    clearMarkers();
+      // Guarda marcadores anteriores indexados por ordem (id do veículo)
+      // para animar atualização de posição em vez de recriar do zero
+      const previousByOrdem = {};
+      markers.forEach(m => {
+        if (m._ordemId) previousByOrdem[m._ordemId] = m;
+      });
 
-    const bounds = [];
+      // Remove apenas os marcadores que não aparecem mais
+      const newOrdems = new Set(items.map(i => String(i?.ordem || '')));
+      markers.forEach(m => {
+        if (!m._ordemId || !newOrdems.has(m._ordemId)) {
+          map.removeLayer(m);
+        }
+      });
+      markers = [];
 
-    items.forEach(item => {
-      const lat = toNumberBR(item?.latitude);
-      const lng = toNumberBR(item?.longitude);
+      const bounds = [];
 
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      items.forEach(item => {
+        const lat = toNumberBR(item?.latitude);
+        const lng = toNumberBR(item?.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-      const marker = L.marker([lat, lng]).addTo(map);
+        const ordemId   = String(item?.ordem || '');
+        const numero    = String(item?.linha  || '-');
+        const existing  = previousByOrdem[ordemId];
 
-      marker.bindPopup(`
-        <strong>Linha ${item?.linha || '-'}</strong><br>
-        Veículo: ${item?.ordem || '-'}
-      `);
+        let marker;
 
-      markers.push(marker);
-      bounds.push([lat, lng]);
-    });
+        if (existing) {
+          // Veículo já estava no mapa: só move e anima
+          existing.setLatLng([lat, lng]);
+          animateBusMarkerUpdate(existing);
+          marker = existing;
+        } else {
+          // Veículo novo: cria com o ícone customizado
+          marker = L.marker([lat, lng], {
+            icon: createBusMarkerIcon(numero)
+          }).addTo(map);
 
-    if (!hasAutoCentered && bounds.length > 0) {
-      if (bounds.length === 1) {
-        map.setView(bounds[0], 15);
-      } else {
-        map.fitBounds(bounds, { padding: [40, 40] });
+          marker.bindPopup(
+            createBusPopupContent({
+              numeroLinha: numero,
+              nomeLinha: item?.ordem || null,
+              trajeto:     item?.routeLongName || null,
+              velocidade:  item?.velocidade ? `${item.velocidade} km/h` : null,
+            }),
+            { className: 'bus-popup', maxWidth: 240, minWidth: 200, closeButton: false }
+          );
+        }
+
+        marker._ordemId = ordemId; // guarda id para próxima atualização
+        markers.push(marker);
+        bounds.push([lat, lng]);
+      });
+
+      if (!hasAutoCentered && bounds.length > 0) {
+        if (bounds.length === 1) {
+          map.setView(bounds[0], 15);
+        } else {
+          map.fitBounds(bounds, { padding: [40, 40] });
+        }
+        hasAutoCentered = true;
       }
-      hasAutoCentered = true;
     }
-  }
 
   function filterLines(items) {
     if (!Array.isArray(items)) return [];

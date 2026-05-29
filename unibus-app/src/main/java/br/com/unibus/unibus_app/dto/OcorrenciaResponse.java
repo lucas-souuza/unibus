@@ -1,31 +1,49 @@
 package br.com.unibus.unibus_app.dto;
 
+import br.com.unibus.unibus_app.model.Linha;
 import br.com.unibus.unibus_app.model.Ocorrencia;
-import br.com.unibus.unibus_app.model.TipoOcorrencia;
 
 import java.time.LocalDateTime;
 
 public record OcorrenciaResponse(
         Integer id,
-        Integer idLinha,
-        String numeroLinha,
+        String linha,
+        String nomeLinha,
+        String trajeto,
         String tipo,
         String descricao,
-        LocalDateTime criadoEm
+        LocalDateTime criadoEm,
+        String nomeUsuario
 ) {
+    public static OcorrenciaResponse from(Ocorrencia oc) {
+        Linha linha = oc.getLinha();
 
-    public static OcorrenciaResponse from(Ocorrencia ocorrencia) {
-        TipoOcorrencia tipo = ocorrencia.getTipo();
-        String descricao = ocorrencia.getDescricao();
+        String numeroLinha = linha != null ? linha.getNumeroLinha() : null;
+        String nomeLinha = linha != null ? linha.getNomeLinha() : null;
+
+        String trajeto = null;
+        if (linha != null) {
+            String origem = linha.getOrigem();
+            String destino = linha.getDestino();
+
+            if (origem != null && !origem.isBlank() && destino != null && !destino.isBlank()) {
+                trajeto = origem + " - " + destino;
+            } else if (origem != null && !origem.isBlank()) {
+                trajeto = origem;
+            } else if (destino != null && !destino.isBlank()) {
+                trajeto = destino;
+            }
+        }
 
         return new OcorrenciaResponse(
-                ocorrencia.getIdOcorrencia(),
-                ocorrencia.getLinha().getIdLinha(),
-                ocorrencia.getLinha().getNumeroLinha(),
-                tipo != null ? tipo.name() : null,
-                descricao != null ? descricao : "",
-                ocorrencia.getCriadoEm()
+                oc.getIdOcorrencia(),
+                numeroLinha,
+                nomeLinha,
+                trajeto,
+                oc.getTipo() != null ? oc.getTipo().name().toLowerCase() : null,
+                oc.getDescricao(),
+                oc.getCriadoEm(),
+                oc.getUsuario() != null ? oc.getUsuario().getNome() : null
         );
     }
-
 }

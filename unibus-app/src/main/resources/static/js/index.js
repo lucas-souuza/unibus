@@ -4,13 +4,59 @@ const tabs = document.querySelectorAll('.tab-btn');
 const pages = document.querySelectorAll('.page');
 
 let map;
-const linhasVisiveis = {};
+
+const STORAGE_KEY = 'unibus:linhasVisiveis';
+
+function carregarLinhasSalvas() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function salvarLinhas() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(linhasVisiveis));
+  } catch (_) {}
+}
+
+const linhasVisiveis = carregarLinhasSalvas();
 let currentPage = 'home';
 
 window.addEventListener('load', () => {
   const title = document.getElementById('logo-title');
   const line = document.getElementById('logo-line');
+  // Abas internas da section Ocorrências
+  const ocTabs = document.querySelectorAll('[data-oc-tab]');
+  const ocPanels = {
+    lista: document.getElementById('oc-panel-lista'),
+    form:  document.getElementById('oc-panel-form')
+  };
 
+  ocTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.ocTab;
+
+      ocTabs.forEach(t => {
+        t.classList.remove('is-active');
+        t.setAttribute('aria-selected', 'false');
+      });
+
+      tab.classList.add('is-active');
+      tab.setAttribute('aria-selected', 'true');
+
+      Object.entries(ocPanels).forEach(([key, panel]) => {
+        if (!panel) return;
+        panel.style.display = key === target ? 'block' : 'none';
+      });
+
+      if (target === 'form') {
+        lucide.createIcons();
+      }
+    });
+  });
   if (title) {
     title.style.opacity = '0';
     title.style.transform = 'translateY(6px)';
@@ -217,6 +263,7 @@ function centerMap() {
       renderizarLinhasSelecionadasRastreio();
       syncLinhasVisiveisRastreio();
       definirStatusRastreio(`Linha ${numero} adicionada ao mapa.`);
+      salvarLinhas();
 
       if (rastreioBuscaInput) rastreioBuscaInput.value = '';
       if (rastreioResultadosEl) rastreioResultadosEl.hidden = true;
@@ -247,6 +294,7 @@ function centerMap() {
           ? 'Filtro atualizado.'
           : 'Nenhuma linha selecionada.'
       );
+      salvarLinhas();
     }
 
     function renderizarResultadosRastreio(linhas) {

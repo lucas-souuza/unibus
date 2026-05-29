@@ -13,6 +13,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <link rel="stylesheet" href="/marker/bus-marker.css" th:href="@{/marker/bus-marker.css}"/>
   <link rel="stylesheet" href="/css/index.css" th:href="@{/css/index.css}" />
 
 </head>
@@ -339,160 +340,274 @@
           </div>
         </div>
       </section>
-      
-      <!-- OCORRÊNCIAS -->
+
+      <!-- =====================================================================
+  OCORRÊNCIAS — duas abas:
+    · "Registros"  → lista paginada do banco (Thymeleaf)
+    · "Nova"       → formulário já existente
+
+  Modelo esperado no Controller:
+    model.addAttribute("ocorrencias", List<OcorrenciaDto>)
+
+  OcorrenciaDto deve expor:
+    linha, nomeLinha, trajeto, tipo, descricao, criadoEm (LocalDateTime),
+    nomeUsuario (opcional), status ("PENDENTE" | "RESOLVIDA" | "INVALIDA")
+====================================================================== -->
+
       <section id="ocorrencias" class="page" th:attr="data-usuario-logado=${usuarioNome != null}">
-        <div class="section-head">
+
+        <div class="section-head ocorrencias-head">
           <div>
             <h2>Ocorrências</h2>
-            <p>Informe problemas operacionais em uma linha para ajudar outros passageiros</p>
+            <p>Acompanhe e registre problemas operacionais nas linhas</p>
+          </div>
+
+          <div class="ocorrencias-tabs" role="tablist" aria-label="Visualização de ocorrências">
+            <button
+                    type="button"
+                    class="ocorrencias-tab is-active"
+                    role="tab"
+                    data-oc-tab="lista"
+                    aria-selected="true"
+                    aria-controls="oc-panel-lista">
+              <i data-lucide="list" class="w-4 h-4" aria-hidden="true"></i>
+              Registros
+            </button>
+
+            <button
+                    type="button"
+                    class="ocorrencias-tab"
+                    role="tab"
+                    data-oc-tab="form"
+                    aria-selected="false"
+                    aria-controls="oc-panel-form">
+              <i data-lucide="plus" class="w-4 h-4" aria-hidden="true"></i>
+              Nova ocorrência
+            </button>
           </div>
         </div>
 
-        <div class="ocorrencias-layout">
-          <div class="ocorrencias-form section-card">
-            <div class="ocorrencias-block">
-              <div class="ocorrencias-block-head">
-                <span class="ocorrencias-step">1</span>
-                <div>
-                  <h3>Selecione a linha</h3>
-                  <p>Escolha a rota em que a ocorrência está acontecendo</p>
-                </div>
-              </div>
-              <div class="ocorrencia-linha-search-wrap">
-                <label class="sr-only" for="ocorrencia-linha-busca">Buscar linha</label>
-                <div class="ocorrencia-linha-search">
-                  <i data-lucide="search" class="w-4 h-4 ocorrencia-search-icon"></i>
-                  <input
-                    type="search"
-                    id="ocorrencia-linha-busca"
-                    class="ocorrencia-linha-input"
-                    placeholder="Busque por número, nome ou bairro (ex.: 636, Penha, Castelo)"
-                    autocomplete="off"
-                    spellcheck="false"
-                    aria-autocomplete="list"
-                    aria-controls="ocorrencia-linha-resultados"
-                    aria-expanded="false" />
-                </div>
-
-                <div
-                  id="ocorrencia-linha-resultados"
-                  class="ocorrencia-linha-resultados"
-                  role="listbox"
-                  aria-label="Resultados da busca de linhas"
-                  hidden></div>
-
-                <p id="ocorrencia-linha-status" class="ocorrencias-hint">
-                  Digite para buscar nas linhas cadastradas no sistema.
-                </p>
-
-                <div id="ocorrencia-linha-selecionada" class="ocorrencia-linha-selecionada" hidden>
-                  <div class="ocorrencia-linha-selecionada-top">
-                    <span id="ocorrencia-linha-badge" class="linha-badge">—</span>
-                    <button type="button" id="ocorrencia-linha-limpar" class="ocorrencia-linha-limpar">
-                      Trocar linha
-                    </button>
-                  </div>
-                  <strong id="ocorrencia-linha-titulo">—</strong>
-                  <span id="ocorrencia-linha-trajeto" class="muted">—</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="ocorrencias-block">
-              <div class="ocorrencias-block-head">
-                <span class="ocorrencias-step">2</span>
-                <div>
-                  <h3>Tipo de ocorrência</h3>
-                  <p>Selecione o que está acontecendo nesta linha</p>
-                </div>
-              </div>
-              <div id="ocorrencias-tipos" class="ocorrencias-tipos" role="group" aria-label="Tipos de ocorrência">
-                <button type="button" class="ocorrencia-tipo-btn" data-tipo="superlotacao" aria-pressed="false">
-                  <span class="ocorrencia-tipo-icon" style="background:rgba(245,207,39,0.28);">
-                    <i data-lucide="users" class="w-5 h-5"></i>
-                  </span>
-                  <span class="ocorrencia-tipo-copy">
-                    <strong>Superlotação</strong>
-                    <span>Ônibus lotado ou sem vagas</span>
-                  </span>
-                </button>
-                <button type="button" class="ocorrencia-tipo-btn" data-tipo="atraso" aria-pressed="false">
-                  <span class="ocorrencia-tipo-icon" style="background:rgba(39,245,235,0.22);">
-                    <i data-lucide="clock-3" class="w-5 h-5"></i>
-                  </span>
-                  <span class="ocorrencia-tipo-copy">
-                    <strong>Atraso</strong>
-                    <span>Saída ou chegada fora do horário</span>
-                  </span>
-                </button>
-                <button type="button" class="ocorrencia-tipo-btn" data-tipo="acidente" aria-pressed="false">
-                  <span class="ocorrencia-tipo-icon" style="background:#fee2e2;">
-                    <i data-lucide="triangle-alert" class="w-5 h-5 text-red-600"></i>
-                  </span>
-                  <span class="ocorrencia-tipo-copy">
-                    <strong>Acidente</strong>
-                    <span>Incidente ou colisão no trajeto</span>
-                  </span>
-                </button>
-                <button type="button" class="ocorrencia-tipo-btn" data-tipo="interrupcao" aria-pressed="false">
-                  <span class="ocorrencia-tipo-icon" style="background:rgba(11,11,11,0.06);">
-                    <i data-lucide="route-off" class="w-5 h-5"></i>
-                  </span>
-                  <span class="ocorrencia-tipo-copy">
-                    <strong>Interrupção de trajeto</strong>
-                    <span>Rota parcial ou totalmente interrompida</span>
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            <div class="ocorrencias-block">
-              <label class="ocorrencias-label" for="ocorrencia-descricao">Descrição (opcional)</label>
-              <textarea
-                id="ocorrencia-descricao"
-                class="ocorrencias-textarea"
-                rows="4"
-                maxlength="500"
-                placeholder="Ex.: ônibus parado há 15 min na Av. Pasteur, sentido Centro"></textarea>
-              <p class="ocorrencias-hint">Máximo de 500 caracteres.</p>
-            </div>
-
-            <button
-              id="ocorrencia-enviar"
-              type="button"
-              class="pill-btn ocorrencias-submit"
-              disabled>
-              Registrar ocorrência
-            </button>
+        <!-- ABA 1 — REGISTROS -->
+        <div id="oc-panel-lista" class="oc-panel" role="tabpanel">
+          <div class="oc-empty section-card"
+               th:if="${ocorrencias == null or ocorrencias.isEmpty()}">
+            <i data-lucide="inbox" class="w-8 h-8" aria-hidden="true"></i>
+            <p>Nenhuma ocorrência registrada ainda.</p>
           </div>
 
-          <aside class="ocorrencias-resumo section-card">
-            <p class="eyebrow">Resumo do registro</p>
-            <h3 id="ocorrencia-resumo-linha">Nenhuma linha selecionada</h3>
-            <p id="ocorrencia-resumo-trajeto" class="ocorrencia-resumo-trajeto muted">Busque e escolha uma linha ao lado.</p>
+          <div class="oc-lista" th:if="${ocorrencias != null and !ocorrencias.isEmpty()}">
+            <div class="oc-card section-card" th:each="oc : ${ocorrencias}">
+              <div class="oc-card-top">
+                <span class="oc-linha-badge linha-badge" th:text="${oc.linha}">006</span>
 
-            <div class="ocorrencia-resumo-chip" id="ocorrencia-resumo-tipo">
-              <i data-lucide="clipboard-list" class="w-4 h-4"></i>
-              <span>Selecione um tipo de ocorrência</span>
-            </div>
+                <span class="oc-nome-linha"
+                      th:text="${oc.nomeLinha != null and !#strings.isEmpty(oc.nomeLinha) ? oc.nomeLinha : oc.trajeto}">
+            Silvestre - Castelo
+          </span>
 
-            <div class="ocorrencia-resumo-desc-wrap">
-              <p class="ocorrencias-label">Descrição</p>
-              <p id="ocorrencia-resumo-descricao" class="ocorrencia-resumo-desc muted">Nenhuma descrição adicionada.</p>
-            </div>
-
-            <div class="ocorrencia-resumo-list">
-              <div class="ocorrencia-resumo-item">
-                <i data-lucide="shield-check" class="w-4 h-4"></i>
-                <span>Registro visível apenas após validação do envio</span>
+                <div class="oc-card-meta">
+                  <time
+                          class="oc-data muted"
+                          th:datetime="${oc.criadoEm}"
+                          th:text="${#temporals.format(oc.criadoEm, 'dd/MM/yyyy · HH:mm')}">
+                    01/01/2025 · 14:30
+                  </time>
+                </div>
               </div>
-              <div class="ocorrencia-resumo-item">
-                <i data-lucide="bell-ring" class="w-4 h-4"></i>
-                <span>Outros usuários poderão ser alertados na linha</span>
+
+              <div class="oc-card-body">
+          <span class="oc-tipo-chip"
+                th:classappend="${
+                  oc.tipo == 'superlotacao' ? ' is-yellow' :
+                  oc.tipo == 'atraso'       ? ' is-cyan'   :
+                  oc.tipo == 'acidente'     ? ' is-red'    : ' is-dark'
+                }">
+
+            <i data-lucide="users" aria-hidden="true" th:if="${oc.tipo == 'superlotacao'}"></i>
+            <i data-lucide="clock-3" aria-hidden="true" th:if="${oc.tipo == 'atraso'}"></i>
+            <i data-lucide="triangle-alert" aria-hidden="true" th:if="${oc.tipo == 'acidente'}"></i>
+            <i data-lucide="route-off" aria-hidden="true" th:if="${oc.tipo == 'interrupcao'}"></i>
+
+            <span th:text="${
+              oc.tipo == 'superlotacao' ? 'Superlotação' :
+              oc.tipo == 'atraso'       ? 'Atraso'       :
+              oc.tipo == 'acidente'     ? 'Acidente'     : 'Interrupção de trajeto'
+            }">Tipo</span>
+          </span>
+
+                <p class="oc-descricao"
+                   th:if="${oc.descricao != null and !#strings.isEmpty(oc.descricao)}"
+                   th:text="${oc.descricao}">
+                  Descrição da ocorrência.
+                </p>
+
+                <p class="oc-descricao muted"
+                   th:unless="${oc.descricao != null and !#strings.isEmpty(oc.descricao)}">
+                  Sem descrição adicional.
+                </p>
+              </div>
+
+              <div class="oc-card-footer" th:if="${oc.nomeUsuario != null and !#strings.isEmpty(oc.nomeUsuario)}">
+                <i data-lucide="user" aria-hidden="true"></i>
+                <span th:text="${oc.nomeUsuario}">Usuário</span>
               </div>
             </div>
-          </aside>
+          </div>
+        </div>
+
+        <!-- ABA 2 — NOVA OCORRÊNCIA -->
+        <div id="oc-panel-form" class="oc-panel" role="tabpanel" style="display:none">
+          <div class="ocorrencias-layout">
+            <div class="ocorrencias-form section-card">
+              <div class="ocorrencias-block">
+                <div class="ocorrencias-block-head">
+                  <span class="ocorrencias-step">1</span>
+                  <div>
+                    <h3>Selecione a linha</h3>
+                    <p>Escolha a rota em que a ocorrência está acontecendo</p>
+                  </div>
+                </div>
+
+                <div class="ocorrencia-linha-search-wrap">
+                  <label class="sr-only" for="ocorrencia-linha-busca">Buscar linha</label>
+
+                  <div class="ocorrencia-linha-search">
+                    <i data-lucide="search" class="w-4 h-4 ocorrencia-search-icon"></i>
+                    <input
+                            type="search"
+                            id="ocorrencia-linha-busca"
+                            class="ocorrencia-linha-input"
+                            placeholder="Busque por número, nome ou bairro (ex.: 636, Penha, Castelo)"
+                            autocomplete="off"
+                            spellcheck="false"
+                            aria-autocomplete="list"
+                            aria-controls="ocorrencia-linha-resultados"
+                            aria-expanded="false" />
+                  </div>
+
+                  <div
+                          id="ocorrencia-linha-resultados"
+                          class="ocorrencia-linha-resultados"
+                          role="listbox"
+                          aria-label="Resultados da busca de linhas"
+                          hidden></div>
+
+                  <p id="ocorrencia-linha-status" class="ocorrencias-hint">
+                    Digite para buscar nas linhas cadastradas no sistema.
+                  </p>
+
+                  <div id="ocorrencia-linha-selecionada" class="ocorrencia-linha-selecionada" hidden>
+                    <div class="ocorrencia-linha-selecionada-top">
+                      <span id="ocorrencia-linha-badge" class="linha-badge">—</span>
+                      <button type="button" id="ocorrencia-linha-limpar" class="ocorrencia-linha-limpar">
+                        Trocar linha
+                      </button>
+                    </div>
+                    <strong id="ocorrencia-linha-titulo">—</strong>
+                    <span id="ocorrencia-linha-trajeto" class="muted">—</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ocorrencias-block">
+                <div class="ocorrencias-block-head">
+                  <span class="ocorrencias-step">2</span>
+                  <div>
+                    <h3>Tipo de ocorrência</h3>
+                    <p>Selecione o que está acontecendo nesta linha</p>
+                  </div>
+                </div>
+
+                <div id="ocorrencias-tipos" class="ocorrencias-tipos" role="group" aria-label="Tipos de ocorrência">
+                  <button type="button" class="ocorrencia-tipo-btn" data-tipo="superlotacao" aria-pressed="false">
+              <span class="ocorrencia-tipo-icon" style="background:rgba(245,207,39,0.28);">
+                <i data-lucide="users" class="w-5 h-5"></i>
+              </span>
+                    <span class="ocorrencia-tipo-copy">
+                <strong>Superlotação</strong>
+                <span>Ônibus lotado ou sem vagas</span>
+              </span>
+                  </button>
+
+                  <button type="button" class="ocorrencia-tipo-btn" data-tipo="atraso" aria-pressed="false">
+              <span class="ocorrencia-tipo-icon" style="background:rgba(39,245,235,0.22);">
+                <i data-lucide="clock-3" class="w-5 h-5"></i>
+              </span>
+                    <span class="ocorrencia-tipo-copy">
+                <strong>Atraso</strong>
+                <span>Saída ou chegada fora do horário</span>
+              </span>
+                  </button>
+
+                  <button type="button" class="ocorrencia-tipo-btn" data-tipo="acidente" aria-pressed="false">
+              <span class="ocorrencia-tipo-icon" style="background:#fee2e2;">
+                <i data-lucide="triangle-alert" class="w-5 h-5 text-red-600"></i>
+              </span>
+                    <span class="ocorrencia-tipo-copy">
+                <strong>Acidente</strong>
+                <span>Incidente ou colisão no trajeto</span>
+              </span>
+                  </button>
+
+                  <button type="button" class="ocorrencia-tipo-btn" data-tipo="interrupcao" aria-pressed="false">
+              <span class="ocorrencia-tipo-icon" style="background:rgba(11,11,11,0.06);">
+                <i data-lucide="route-off" class="w-5 h-5"></i>
+              </span>
+                    <span class="ocorrencia-tipo-copy">
+                <strong>Interrupção de trajeto</strong>
+                <span>Rota parcial ou totalmente interrompida</span>
+              </span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="ocorrencias-block">
+                <label class="ocorrencias-label" for="ocorrencia-descricao">Descrição (opcional)</label>
+                <textarea
+                        id="ocorrencia-descricao"
+                        class="ocorrencias-textarea"
+                        rows="4"
+                        maxlength="500"
+                        placeholder="Ex.: ônibus parado há 15 min na Av. Pasteur, sentido Centro"></textarea>
+                <p class="ocorrencias-hint">Máximo de 500 caracteres.</p>
+              </div>
+
+              <button id="ocorrencia-enviar" type="button" class="pill-btn ocorrencias-submit" disabled>
+                Registrar ocorrência
+              </button>
+            </div>
+
+            <aside class="ocorrencias-resumo section-card">
+              <p class="eyebrow">Resumo do registro</p>
+              <h3 id="ocorrencia-resumo-linha">Nenhuma linha selecionada</h3>
+              <p id="ocorrencia-resumo-trajeto" class="ocorrencia-resumo-trajeto muted">
+                Busque e escolha uma linha ao lado.
+              </p>
+
+              <div class="ocorrencia-resumo-chip" id="ocorrencia-resumo-tipo">
+                <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+                <span>Selecione um tipo de ocorrência</span>
+              </div>
+
+              <div class="ocorrencia-resumo-desc-wrap">
+                <p class="ocorrencias-label">Descrição</p>
+                <p id="ocorrencia-resumo-descricao" class="ocorrencia-resumo-desc muted">
+                  Nenhuma descrição adicionada.
+                </p>
+              </div>
+
+              <div class="ocorrencia-resumo-list">
+                <div class="ocorrencia-resumo-item">
+                  <i data-lucide="info" class="w-4 h-4"></i>
+                  <span>Os registros mais recentes aparecem primeiro na aba de ocorrências.</span>
+                </div>
+                <div class="ocorrencia-resumo-item">
+                  <i data-lucide="bell-ring" class="w-4 h-4"></i>
+                  <span>Outros usuários podem consultar os relatos recentes da linha.</span>
+                </div>
+              </div>
+            </aside>
+          </div>
         </div>
 
         <div id="ocorrencia-toast" class="ocorrencia-toast" role="status" aria-live="polite" hidden>
@@ -500,7 +615,6 @@
           <span id="ocorrencia-toast-text">Ocorrência registrada com sucesso.</span>
         </div>
       </section>
-
       <!-- LINHAS -->
       <section id="linhas" class="page">
         <div class="section-head">
@@ -975,6 +1089,7 @@
   <link rel="stylesheet" th:href="@{/dist/rastreio/rastreio.css}" href="/dist/rastreio/rastreio.css" />
   <script type="module" th:src="@{/dist/rastreio/rastreio.js}" src="/dist/rastreio/rastreio.js"></script>
   <script th:src="@{/js/index.js}" src="/js/index.js"></script>
+      <script th:src="@{marker/bus-marker.js}" src="/marker/bus-marker.js"></script>
 
   <script th:inline="javascript">
     const initialPage = /*[[${paginaInicial}]]*/ 'home';

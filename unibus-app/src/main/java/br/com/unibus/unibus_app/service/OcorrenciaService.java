@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +45,14 @@ public class OcorrenciaService {
         return OcorrenciaResponse.from(salva);
     }
 
+    @Transactional(readOnly = true)
+    public List<OcorrenciaResponse> listarTodasPorRecencia() {
+        return ocorrenciaRepository.findAllByOrderByCriadoEmDesc()
+                .stream()
+                .map(OcorrenciaResponse::from)
+                .toList();
+    }
+
     private static TipoOcorrencia parseTipo(String tipo) {
         if (tipo == null || tipo.isBlank()) {
             throw new RuntimeException("Tipo de ocorrência é obrigatório");
@@ -59,11 +68,8 @@ public class OcorrenciaService {
     }
 
     private static String normalizarDescricao(String descricao) {
-        if (descricao == null) {
-            return null;
-        }
+        if (descricao == null) return null;
         String texto = descricao.trim();
         return texto.isEmpty() ? null : texto;
     }
-
 }
