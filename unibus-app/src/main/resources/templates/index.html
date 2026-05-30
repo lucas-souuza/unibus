@@ -1086,10 +1086,11 @@
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script th:src="@{marker/bus-marker.js}" src="/marker/bus-marker.js"></script>
   <link rel="stylesheet" th:href="@{/dist/rastreio/rastreio.css}" href="/dist/rastreio/rastreio.css" />
   <script type="module" th:src="@{/dist/rastreio/rastreio.js}" src="/dist/rastreio/rastreio.js"></script>
   <script th:src="@{/js/index.js}" src="/js/index.js"></script>
-      <script th:src="@{marker/bus-marker.js}" src="/marker/bus-marker.js"></script>
+
 
   <script th:inline="javascript">
     const initialPage = /*[[${paginaInicial}]]*/ 'home';

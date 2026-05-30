@@ -193,7 +193,6 @@ function centerMap() {
 
       const params = new URLSearchParams({ q, limit: String(limit) });
       const response = await fetch(`/api/linhas?${params.toString()}`, {
-        credentials: 'same-origin',
         headers: { Accept: 'application/json' }
       });
 
