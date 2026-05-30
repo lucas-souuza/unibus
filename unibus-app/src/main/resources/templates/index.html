@@ -188,86 +188,181 @@
     <!-- MAIN -->
     <main class="content-main">
 
-      <!-- HOME -->
+      <!-- =====================================================================
+  HOME — section#home
+  -----------------------------------------------------------------------
+  Atributos esperados do Controller:
+
+  Boolean:
+    temProximaLinha      → true se há um próximo horário disponível
+    operacaoNormal       → true = ícone sparkles/verde, false = ícone alert
+
+  Strings (nullable — todos têm fallback seguro):
+    proximaLinhaTitulo   → ex.: "Linha 302 · UNIRIO Centro"
+    proximaLinhaSubtitulo→ ex.: "Saída em 8 min · Ponto Biblioteca Central"
+    proximaSaida         → ex.: "22:00"
+    proximoTrajeto       → ex.: "14 km"
+    proximoStatus        → ex.: "No prazo"
+    routeInfo            → ex.: "Partida prevista no ponto Biblioteca Central…"
+    operacaoStatus       → ex.: "Operação normal"
+
+  Números (nullable):
+    linhasAtivas         → ex.: 12
+    linhasAtrasadas      → ex.: 3
+
+  Alerta (nullable — cartão ciano só renderiza se alertaTitulo != null):
+    alertaTitulo         → ex.: "Mudança de rota às 22:15"
+    alertaSubtitulo      → ex.: "Campus Praia Vermelha"
+====================================================================== -->
+
       <section id="home" class="page page-home active">
 
-        <div class="hero-card">
-          <div>
+        <!-- ══════════════════════════════════════════
+             HERO — estado cheio (há próxima linha)
+        ══════════════════════════════════════════ -->
+        <div class="hero-card" th:if="${temProximaLinha}">
+
+          <div class="hero-top">
             <p class="eyebrow">Próximo embarque</p>
-            <h2 th:text="${proximaLinhaTitulo != null ? proximaLinhaTitulo : 'Linha 302 · UNIRIO Centro'}">
-              Linha 302 · UNIRIO Centro
-            </h2>
-            <p class="hero-sub"
-               th:text="${proximaLinhaSubtitulo != null ? proximaLinhaSubtitulo : 'Saída em 8 min · Ponto Biblioteca Central'}">
-              Saída em 8 min · Ponto Biblioteca Central
-            </p>
+
+            <h2 th:text="${proximaLinhaTitulo}">—</h2>
+
+            <p class="hero-sub" th:text="${proximaLinhaSubtitulo}">—</p>
 
             <div class="hero-stats">
               <div class="hero-stat">
                 <p>Saída</p>
-                <strong th:text="${proximaSaida != null ? proximaSaida : '22:00'}">22:00</strong>
+                <strong th:text="${proximaSaida ?: '—'}">—</strong>
               </div>
               <div class="hero-stat">
                 <p>Trajeto</p>
-                <strong th:text="${proximoTrajeto != null ? proximoTrajeto : '14 km'}">14 km</strong>
+                <strong th:text="${proximoTrajeto ?: '—'}">—</strong>
               </div>
               <div class="hero-stat">
                 <p>Status</p>
-                <strong th:text="${proximoStatus != null ? proximoStatus : 'No prazo'}">No prazo</strong>
+                <strong th:text="${proximoStatus ?: '—'}">—</strong>
               </div>
             </div>
           </div>
 
           <div class="hero-footer">
-            <div class="route-info">
-              Partida prevista no ponto Biblioteca Central, com rota passando por Urca, Botafogo e Centro.
+            <p class="route-info"
+               th:if="${routeInfo != null and !#strings.isEmpty(routeInfo)}"
+               th:text="${routeInfo}"></p>
+
+            <span class="badge-status" th:if="${operacaoNormal}">
+        <i data-lucide="sparkles" class="w-4 h-4" aria-hidden="true"></i>
+        <span th:text="${operacaoStatus ?: 'Operação normal'}">Operação normal</span>
+      </span>
+
+            <span class="badge-status badge-status--alert" th:unless="${operacaoNormal}">
+        <i data-lucide="triangle-alert" class="w-4 h-4" aria-hidden="true"></i>
+        <span th:text="${operacaoStatus ?: 'Atenção'}">Atenção</span>
+      </span>
+          </div>
+
+        </div>
+
+        <!-- ══════════════════════════════════════════
+             HERO — estado vazio (sem linha programada)
+        ══════════════════════════════════════════ -->
+        <div class="hero-card hero-card--empty" th:unless="${temProximaLinha}">
+          <div class="hero-empty">
+      <span class="hero-empty-icon">
+        <i data-lucide="bus" class="w-8 h-8" aria-hidden="true"></i>
+      </span>
+            <div>
+              <p class="eyebrow">Próximo embarque</p>
+              <h2>Sem linhas programadas</h2>
+              <p class="hero-sub">Não há horários disponíveis no momento. Confira a grade completa na aba Horários.</p>
             </div>
-            <span class="badge-status">
-              <i data-lucide="sparkles" class="w-4 h-4"></i>
-              Operação normal
-            </span>
+          </div>
+          <div class="hero-footer">
+            <button
+                    type="button"
+                    class="pill-btn"
+                    data-action="navigate"
+                    data-target="horarios">
+              Ver grade horária
+            </button>
           </div>
         </div>
 
+        <!-- ══════════════════════════════════════════
+             COLUNA DIREITA
+        ══════════════════════════════════════════ -->
         <div class="home-side">
+
+          <!-- Mapa ao vivo -->
           <div class="map-card section-card">
             <div class="card-head">
               <div>
                 <h3>Mapa ao vivo</h3>
                 <p>Posição em tempo real e visualização rápida do campus</p>
               </div>
-              <button class="pill-btn alt" type="button">Atualizar</button>
+              <button
+                      id="home-map-refresh"
+                      class="pill-btn alt"
+                      type="button"
+                      aria-label="Atualizar mapa">
+                Atualizar
+              </button>
             </div>
-            <div id="map"></div>
+            <div
+                    id="map"
+                    role="region"
+                    aria-label="Mapa do campus UNIRIO"></div>
           </div>
 
+          <!-- Métricas -->
           <div class="stats-grid">
-            <div class="metric-card dark">
+
+            <!-- Linhas ativas — preenchido pela atualizarMetricasHome() -->
+            <div class="metric-card dark" id="home-linhas-ativas">
               <p>Linhas ativas</p>
-              <span class="metric-value" th:text="${linhasAtivas != null ? linhasAtivas : 12}">12</span>
-              <span class="metric-sub" th:text="${linhasAtrasadas != null ? linhasAtrasadas + ' com atraso' : '3 com atraso'}">3 com atraso</span>
+              <span class="metric-value">—</span>
+              <span class="metric-sub">Carregando...</span>
             </div>
 
-            <div class="metric-card cyan">
+            <!-- Alerta — só renderiza se houver alerta -->
+            <div class="metric-card cyan" th:if="${alertaTitulo != null}">
               <p>Alerta</p>
-              <span class="metric-value" style="font-size:1.35rem; line-height:1.25;"
-                    th:text="${alertaTitulo != null ? alertaTitulo : 'Mudança de rota às 22:15'}">
-                Mudança de rota às 22:15
-              </span>
-              <span class="metric-sub" th:text="${alertaSubtitulo != null ? alertaSubtitulo : 'Campus Praia Vermelha'}">Campus Praia Vermelha</span>
+              <span
+                      class="metric-value metric-value--sm"
+                      th:text="${alertaTitulo}">—</span>
+              <span
+                      class="metric-sub"
+                      th:if="${alertaSubtitulo != null}"
+                      th:text="${alertaSubtitulo}">—</span>
             </div>
-          </div>
-        </div>
 
-        <button onclick="abrirTutorial()" class="tutorial-card">
-          <div class="tutorial-icon">
+            <!-- Placeholder quando não há alerta -->
+            <div class="metric-card metric-card--muted" th:unless="${alertaTitulo != null}">
+              <p>Alertas</p>
+              <span class="metric-value metric-value--sm metric-value--ok">
+      <i data-lucide="check-circle-2" class="w-6 h-6" aria-hidden="true"></i>
+      Tudo normal
+    </span>
+              <span class="metric-sub">Nenhum alerta ativo no momento</span>
+            </div>
+
+          </div>
+        <!-- ══════════════════════════════════════════
+             TUTORIAL CTA
+        ══════════════════════════════════════════ -->
+        <button
+                type="button"
+                class="tutorial-card"
+                data-action="tutorial"
+                aria-label="Abrir tutorial de uso do UNIBUS">
+          <div class="tutorial-icon" aria-hidden="true">
             <i data-lucide="graduation-cap" class="w-6 h-6"></i>
           </div>
           <div>
             <p class="eyebrow">Novo por aqui?</p>
             <h4>Veja como usar o UNIBUS e acompanhe linhas, horários e avaliações</h4>
           </div>
-          <i data-lucide="chevron-right" class="w-5 h-5 chevron"></i>
+          <i data-lucide="chevron-right" class="w-5 h-5 chevron" aria-hidden="true"></i>
         </button>
 
       </section>

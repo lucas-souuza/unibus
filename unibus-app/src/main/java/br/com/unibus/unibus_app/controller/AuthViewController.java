@@ -1,6 +1,7 @@
 package br.com.unibus.unibus_app.controller;
 
 import br.com.unibus.unibus_app.model.Usuario;
+import br.com.unibus.unibus_app.service.LinhaService;
 import br.com.unibus.unibus_app.service.OcorrenciaService;
 import br.com.unibus.unibus_app.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +32,12 @@ public class AuthViewController {
 
     @GetMapping("/")
     public String homePage(Authentication authentication, Model model) {
+
         model.addAttribute("ocorrencias", ocorrenciaService.listarTodasPorRecencia());
 
+        model.addAttribute("temProximaLinha", false);
+        model.addAttribute("alertaTitulo",    null);
+        model.addAttribute("operacaoNormal",  true);
         if (authentication != null
                 && authentication.isAuthenticated()
                 && !"anonymousUser".equals(authentication.getName())) {

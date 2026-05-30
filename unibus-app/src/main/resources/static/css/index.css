@@ -238,16 +238,18 @@
 }
     /* Header */
     .topbar {
-      position: sticky;
-      top: 24px;
-      z-index: 40;
+      position: static;
       margin-bottom: 24px;
       border-radius: 28px;
       padding: 18px 22px;
+
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 20px;
+
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(12px);
     }
 
     .topbar-eyebrow {
@@ -703,7 +705,84 @@
       margin-left: auto;
       flex-shrink: 0;
     }
+    /* ── Hero vazio ── */
+    .hero-card--empty {
+      /* mantém a mesma base visual, só troca o gradiente */
+      background:
+        radial-gradient(circle at top right, rgba(255,255,255,0.16), transparent 30%),
+        linear-gradient(160deg, #e8edf2 0%, #dde3ea 100%);
+      box-shadow: 0 22px 40px rgba(11, 11, 11, 0.07);
+    }
 
+    .hero-empty {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    .hero-empty-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 22px;
+      background: rgba(11, 11, 11, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(11, 11, 11, 0.38);
+      flex-shrink: 0;
+    }
+
+    .hero-card--empty .hero-card .eyebrow {
+      color: rgba(11, 11, 11, 0.42);
+    }
+
+    .hero-card--empty h2 {
+      color: rgba(11, 11, 11, 0.72);
+    }
+
+    .hero-card--empty .hero-sub {
+      color: rgba(11, 11, 11, 0.52);
+    }
+
+    /* ── Hierarquia do hero-top ── */
+    .hero-top { flex: 1 1 auto; }
+
+    /* ── Badge de alerta (estado de atenção) ── */
+    .badge-status--alert {
+      background: rgba(239, 68, 68, 0.10);
+      border-color: rgba(239, 68, 68, 0.18);
+      color: #dc2626;
+    }
+
+    /* ── Métrica com placeholder (sem alertas) ── */
+    .metric-card--muted {
+      background: linear-gradient(180deg, #f5f7fa 0%, #eef1f4 100%);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .metric-card--muted p {
+      opacity: 0.42;
+    }
+
+    .metric-card--muted .metric-sub {
+      opacity: 0.5;
+    }
+
+    /* ── Valor métrico menor (textos longos de alerta) ── */
+    .metric-value--sm {
+      font-size: 1.28rem !important;
+      line-height: 1.3 !important;
+      margin-top: 12px !important;
+    }
+
+    /* ── Valor "tudo certo" com ícone ── */
+    .metric-value--ok {
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
+      opacity: 0.52;
+    }
     /* RASTREIO */
     .page-rastreio,
     .page-rastreio.active {
@@ -2546,7 +2625,7 @@
     }
 
     /* Small screens intentionally unsupported */
-    @media (max-width: 1180px) {
+    @media (max-width: 400px) {
       html, body {
         min-width: 0;
       }
@@ -2585,4 +2664,37 @@
       .app-shell {
         display: none;
       }
+    }
+    /* ── Marcador de localização atual ── */
+    .location-marker {
+      position: relative;
+      width: 20px;
+      height: 20px;
+    }
+
+    .location-marker__dot {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #1a73e8;
+      border: 2.5px solid #fff;
+      box-shadow: 0 2px 8px rgba(26, 115, 232, 0.5);
+      z-index: 1;
+    }
+
+    .location-marker__pulse {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: rgba(26, 115, 232, 0.18);
+      animation: lm-pulse 2.2s ease-out infinite;
+    }
+
+    @keyframes lm-pulse {
+      0%   { transform: scale(0.7); opacity: 0.8; }
+      70%  { transform: scale(2.4); opacity: 0; }
+      100% { transform: scale(2.4); opacity: 0; }
     }

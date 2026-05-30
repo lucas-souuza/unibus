@@ -57,6 +57,7 @@ window.addEventListener('load', () => {
       }
     });
   });
+  document.getElementById('home-map-refresh')?.addEventListener('click', centralizarNaLocalizacao);
   if (title) {
     title.style.opacity = '0';
     title.style.transform = 'translateY(6px)';
@@ -101,6 +102,7 @@ function showPage(target) {
   if (target === 'home') {
     setTimeout(() => {
       initMap();
+      atualizarMetricasHome();
       if (map) map.invalidateSize();
     }, 150);
   }
@@ -115,11 +117,36 @@ function showPage(target) {
   currentPage = target;
 }
 
+// ── Delegação de data-action (substitui onclick="abrirTutorial()" etc.) ──
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+
+  const action = el.dataset.action;
+
+  if (action === 'tutorial') {
+    // Chama a função existente ou exibe um alerta de fallback
+    if (typeof abrirTutorial === 'function') {
+      abrirTutorial();
+    }
+    return;
+  }
+
+  if (action === 'navigate') {
+    const target = el.dataset.target;
+    if (target) showPage(target);
+    return;
+  }
+});
+
+
 tabs.forEach(btn => {
   btn.addEventListener('click', () => {
     showPage(btn.dataset.target);
   });
 });
+
+let locationMarker = null;
 
 function initMap() {
   if (map) return;
@@ -139,6 +166,92 @@ function initMap() {
     .openPopup();
 }
 
+function criarIconeLocalizacao() {
+  return L.divIcon({
+    html: `
+      <div class="location-marker">
+        <div class="location-marker__pulse"></div>
+        <div class="location-marker__dot"></div>
+      </div>`,
+    className: '',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
+}
+
+function centralizarNaLocalizacao() {
+  const btn = document.getElementById('home-map-refresh');
+
+  if (!navigator.geolocation) {
+    if (btn) btn.textContent = 'Sem suporte';
+    setTimeout(() => { if (btn) btn.textContent = 'Atualizar'; }, 2000);
+    return;
+  }
+
+  if (btn) { btn.textContent = 'Localizando…'; btn.disabled = true; }
+
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => {
+      const { latitude: lat, longitude: lng, accuracy } = coords;
+
+      if (!map) initMap();
+
+      // Remove marcador anterior
+      if (locationMarker) map.removeLayer(locationMarker);
+
+      locationMarker = L.marker([lat, lng], { icon: criarIconeLocalizacao() })
+        .addTo(map)
+        .bindPopup('<b>Você está aqui</b>')
+        .openPopup();
+
+      map.setView([lat, lng], 16, { animate: true });
+
+      if (btn) { btn.textContent = 'Atualizar'; btn.disabled = false; }
+    },
+    (err) => {
+      const msgs = {
+        1: 'Permissão negada',
+        2: 'Posição indisponível',
+        3: 'Tempo esgotado',
+      };
+      if (btn) { btn.textContent = msgs[err.code] ?? 'Erro'; btn.disabled = false; }
+      setTimeout(() => { if (btn) btn.textContent = 'Atualizar'; }, 2500);
+    },
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+  );
+}
+// Métricas da home puxadas da API
+async function atualizarMetricasHome() {
+  const valorEl = document.querySelector('#home-linhas-ativas .metric-value');
+  const subEl   = document.querySelector('#home-linhas-ativas .metric-sub');
+  if (!valorEl) return;
+
+  try {
+    const res  = await fetch('/api/onibus/posicoes', {
+      headers: { Accept: 'application/json' }
+    });
+    if (!res.ok) throw new Error();
+
+    const data = await res.json();
+    const items = Array.isArray(data) ? data
+      : Array.isArray(data?.items)   ? data.items
+      : Array.isArray(data?.content) ? data.content : [];
+
+    // Linhas únicas ativas
+    const linhasUnicas  = new Set(items.map(i => String(i?.linha || '').trim()).filter(Boolean));
+    const totalLinhas   = linhasUnicas.size;
+
+    // Veículos parados (velocidade == "0" ou 0)
+    const parados = items.filter(i => String(i?.velocidade ?? '').trim() === '0').length;
+
+    valorEl.textContent = totalLinhas || '—';
+    if (subEl) subEl.textContent = parados > 0 ? `${parados} veículo${parados > 1 ? 's' : ''} parado${parados > 1 ? 's' : ''}` : 'Todos em movimento';
+
+  } catch {
+    if (valorEl) valorEl.textContent = '—';
+    if (subEl)   subEl.textContent   = 'Não foi possível carregar';
+  }
+}
 function initMapRastreio() {
   if (!window.UnibusRastreio) return;
   window.UnibusRastreio.mount();
