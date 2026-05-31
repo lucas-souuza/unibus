@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UNIBUS — Medições de carga (k6)</title>
+  <style>
+    :root { font-family: Inter, system-ui, sans-serif; color: #0f172a; background: #f8fafc; }
+    body { margin: 0; padding: 2rem; max-width: 1100px; margin-inline: auto; }
+    h1 { font-size: 1.75rem; }
+    h2 { margin-top: 2rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.35rem; }
+    .card { background: #fff; border-radius: 12px; padding: 1.25rem; margin: 1rem 0; box-shadow: 0 1px 3px rgb(0 0 0 / 8%); }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; }
+    .metric { background: #f1f5f9; border-radius: 8px; padding: 0.75rem; }
+    .metric strong { display: block; font-size: 1.25rem; }
+    .metric span { font-size: 0.8rem; color: #64748b; }
+    img.chart { width: 100%; height: auto; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 800px) { .compare { grid-template-columns: 1fr; } }
+    a { color: #2563eb; }
+    .empty { color: #64748b; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>Medições de teste de carga (k6)</h1>
+  <p>Comparação visual entre <strong>posições</strong> (leitura) e <strong>ocorrências</strong> (escrita). Atualize executando <code>load-testing/run-all.ps1</code>.</p>
+  <p><a href="MEDICOES-SLA.md">Documento completo (MEDICOES-SLA.md)</a></p>
+
+  <section id="compare" class="card compare"></section>
+  <div id="services"></div>
+
+  <script>
+    const LABELS = {
+      posicoes: 'API Posições (GET /api/onibus/posicoes)',
+      ocorrencias: 'API Ocorrências (POST /api/ocorrencias)',
+    };
+
+    async function load() {
+      const res = await fetch('report-data.json');
+      const data = await res.json();
+      const services = data.services || {};
+      const keys = ['posicoes', 'ocorrencias'];
+
+      const compare = document.getElementById('compare');
+      const host = document.getElementById('services');
+
+      if (!Object.keys(services).length) {
+        compare.innerHTML = '<p class="empty">Nenhuma medição ainda. Rode os scripts k6 e regenere os gráficos.</p>';
+        return;
+      }
+
+      compare.innerHTML = keys
+        .filter((k) => services[k])
+        .map((k) => metricCard(k, services[k]))
+        .join('');
+
+      host.innerHTML = keys
+        .filter((k) => services[k])
+        .map((k) => serviceBlock(k, services[k]))
+        .join('');
+    }
+
+    function metricCard(key, s) {
+      return `<div>
+        <h3>${LABELS[key] || key}</h3>
+        <div class="metrics">
+          <div class="metric"><strong>${fmt(s.avg_latency_ms)}</strong><span>latência média (ms)</span></div>
+          <div class="metric"><strong>${fmt(s.http_reqs_rate)}</strong><span>vazão média (req/s)</span></div>
+          <div class="metric"><strong>${fmt(s.max_vus || s.vus_max)}</strong><span>concorrência máx. (VUs)</span></div>
+          <div class="metric"><strong>${fmt((s.http_req_failed_rate || 0) * 100)}%</strong><span>falhas HTTP</span></div>
+        </div>
+      </div>`;
+    }
+
+    function serviceBlock(key, s) {
+      const intervals = s.throughput_intervals || {};
+      const intervalRows = Object.entries(intervals)
+        .map(([w, v]) => `<li>${w}: ~${v} req/s (média global)</li>`)
+        .join('');
+      const chart = s.chart
+        ? `<img class="chart" src="${s.chart}" alt="Gráfico ${key}" />`
+        : '<p class="empty">Gráfico não gerado.</p>';
+
+      return `<section class="card">
+        <h2>${LABELS[key] || key}</h2>
+        <p>Medição: ${s.measured_at || '—'}</p>
+        ${chart}
+        <h3>Vazão por intervalo de referência</h3>
+        <ul>${intervalRows || '<li class="empty">—</li>'}</ul>
+        <p>Total de requisições amostradas: ${s.total_requests ?? '—'}</p>
+      </section>`;
+    }
+
+    function fmt(v) {
+      if (v == null || Number.isNaN(v)) return '—';
+      if (typeof v === 'number') return Number.isInteger(v) ? String(v) : v.toFixed(2);
+      return String(v);
+    }
+
+    load();
+  </script>
+</body>
+</html>

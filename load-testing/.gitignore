@@ -1,0 +1,9 @@
+# Execuções locais (regerar com run-*.ps1)
+results/raw-*.json
+results/raw-*.ndjson
+results/summary-*.json
+.env
+
+# Artefatos gerados (manter exemplos versionados se desejado)
+results/charts/*.png
+!results/charts/.gitkeep
