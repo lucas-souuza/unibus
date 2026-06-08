@@ -1,44 +1,44 @@
 {
-  "generated_at": "2026-05-31T15:42:50.528812+00:00",
+  "generated_at": "2026-06-08T14:09:01.389515+00:00",
   "environment_note": "Preencha após executar run-all.ps1 com app + MySQL ativos.",
   "services": {
     "posicoes": {
       "chart": "charts/posicoes-evolucao.png",
       "throughput_intervals": {
-        "1s": 3.401,
-        "5s": 3.401,
-        "10s": 3.401,
-        "30s": 3.401,
-        "60s": 3.401
+        "1s": 27.759,
+        "5s": 27.759,
+        "10s": 27.759,
+        "30s": 27.759,
+        "60s": 27.759
       },
       "max_vus": 30.0,
-      "avg_latency_ms": 888.53,
-      "total_requests": 655,
-      "http_req_duration_avg": 888.5250875103726,
+      "avg_latency_ms": 33.13,
+      "total_requests": 5702,
+      "http_req_duration_avg": 33.13333943587945,
       "http_reqs_rate": null,
       "http_req_failed_rate": null,
       "vus_max": 30,
-      "summary_file": "summary-posicoes-2026-05-31T15-35-08.json",
-      "measured_at": "31/05/2026"
+      "summary_file": "summary-posicoes-2026-06-08T14-05-25.json",
+      "measured_at": "08/06/2026"
     },
     "ocorrencias": {
       "chart": "charts/ocorrencias-evolucao.png",
       "throughput_intervals": {
-        "1s": 16.282,
-        "5s": 16.282,
-        "10s": 16.282,
-        "30s": 16.282,
-        "60s": 16.282
+        "1s": 32.138,
+        "5s": 32.138,
+        "10s": 32.138,
+        "30s": 32.138,
+        "60s": 32.138
       },
       "max_vus": 30.0,
-      "avg_latency_ms": 9.13,
-      "total_requests": 3407,
-      "http_req_duration_avg": 9.128423393014375,
+      "avg_latency_ms": 3.05,
+      "total_requests": 6738,
+      "http_req_duration_avg": 3.05159122885129,
       "http_reqs_rate": null,
       "http_req_failed_rate": null,
       "vus_max": 30,
-      "summary_file": "summary-ocorrencias-2026-05-31T15-42-31.json",
-      "measured_at": "31/05/2026"
+      "summary_file": "summary-ocorrencias-2026-06-08T14-09-00.json",
+      "measured_at": "08/06/2026"
     }
   }
 }

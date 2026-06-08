@@ -4,8 +4,8 @@ Pasta isolada para medições de SLA das APIs **posições** (leitura) e **ocorr
 
 ## Pré-requisitos
 
-1. **k6** instalado ([download](https://grafana.com/docs/k6/latest/set-up/install-k6/))  
-   - Windows (winget): `winget install GrafanaLabs.k6`
+1. **k6** instalado ([download](https://grafana.com/docs/k6/latest/set-up/install-k6/))
+  - Windows (winget): `winget install GrafanaLabs.k6`
 2. **Python 3.10+** com dependências: `pip install -r tools/requirements.txt`
 3. Aplicação rodando (`http://localhost:8080` por padrão), MySQL com schema e usuário de teste
 4. Para **ocorrências**: usuário cadastrado e `K6_LINHA` existente na tabela `linha`
@@ -28,11 +28,13 @@ Copy-Item config.env.example .env
 
 ## Documentação e visualização
 
-| Artefato | Descrição |
-|----------|-----------|
-| [docs/MEDICOES-SLA.md](docs/MEDICOES-SLA.md) | Relatório estruturado (SLA, arquivos, hipóteses) |
-| [docs/index.html](docs/index.html) | Página comparativa (abra no navegador após os testes) |
-| `results/charts/` | PNGs gerados pelo `tools/generate_report.py` |
+
+| Artefato                                     | Descrição                                             |
+| -------------------------------------------- | ----------------------------------------------------- |
+| [docs/MEDICOES-SLA.md](docs/MEDICOES-SLA.md) | Relatório estruturado (SLA, arquivos, hipóteses)      |
+| [docs/index.html](docs/index.html)           | Página comparativa (abra no navegador após os testes) |
+| `results/charts/`                            | PNGs gerados pelo `tools/generate_report.py`          |
+
 
 **Link sugerido no repositório (após commit na `main`):**  
 `https://github.com/lucas-souuza/unibus/blob/main/load-testing/docs/MEDICOES-SLA.md`  
@@ -51,3 +53,4 @@ load-testing/
   docs/MEDICOES-SLA.md, index.html
   run-*.ps1
 ```
+
