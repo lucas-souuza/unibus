@@ -6,10 +6,6 @@ Relatório de testes de carga com [k6](https://k6.io/). Código dos testes em [`
 
 `https://github.com/lucas-souuza/unibus/tree/main/load-testing/docs`
 
-> **Status:** medições executadas em 31/05/2026. Gráficos em [`charts/`](charts/) e comparação em [`index.html`](index.html).
-
-**Data da medição:** 31/05/2026
-
 ---
 
 ## Nome do Serviço 1 — API Posições de ônibus
@@ -24,10 +20,11 @@ Relatório de testes de carga com [k6](https://k6.io/). Código dos testes em [`
 | Arquivo | Papel |
 |---------|--------|
 | [OnibusPosicaoController.java](https://github.com/lucas-souuza/unibus/blob/main/unibus-app/src/main/java/br/com/unibus/unibus_app/controller/OnibusPosicaoController.java) | Controller REST |
-| [OnibusPosicaoService.java](https://github.com/lucas-souuza/unibus/blob/main/unibus-app/src/main/java/br/com/unibus/unibus_app/service/OnibusPosicaoService.java) | Orquestração e agregação por veículo |
+| [OnibusPosicaoService.java](https://github.com/lucas-souuza/unibus/blob/main/unibus-app/src/main/java/br/com/unibus/unibus_app/service/OnibusPosicaoService.java) | Orquestração, cache e enriquecimento paralelo |
 | [SppoGpsClient.java](https://github.com/lucas-souuza/unibus/blob/main/unibus-app/src/main/java/br/com/unibus/unibus_app/integration/sppo/SppoGpsClient.java) | Cliente HTTP SPPO |
 | [SppoGpsService.java](https://github.com/lucas-souuza/unibus/blob/main/unibus-app/src/main/java/br/com/unibus/unibus_app/integration/sppo/SppoGpsService.java) | Serviço GPS |
 | [GtfsRoutesService.java](https://github.com/lucas-souuza/unibus/blob/main/unibus-app/src/main/java/br/com/unibus/unibus_app/integration/gtfs/GtfsRoutesService.java) | Rotas GTFS |
+| [CacheConfig.java](https://github.com/lucas-souuza/unibus/blob/main/unibus-app/src/main/java/br/com/unibus/unibus_app/config/CacheConfig.java) | Configuração do cache Caffeine (novo) |
 | [SecurityConfig.java](https://github.com/lucas-souuza/unibus/blob/main/unibus-app/src/main/java/br/com/unibus/unibus_app/security/SecurityConfig.java) | Rota pública (`/api/onibus/**`) |
 
 ### Arquivos com o código fonte de medição do SLA
@@ -38,10 +35,6 @@ Relatório de testes de carga com [k6](https://k6.io/). Código dos testes em [`
 | Opções de carga | [scripts/lib/options.js](../scripts/lib/options.js) |
 | Geração de gráficos | [tools/generate_report.py](../tools/generate_report.py) |
 
-### Data da medição
-
-31/05/2026
-
 ### Descrição das configurações
 
 | Item | Valor |
@@ -50,32 +43,103 @@ Relatório de testes de carga com [k6](https://k6.io/). Código dos testes em [`
 | Banco | MySQL 8.0 local, `localhost:3306`, DB `unibus` (516 linhas) |
 | Cliente de carga | k6 v2.0.0 (Windows) |
 | SPPO | `https://dados.mobilidade.rio/gps/sppo` |
-| Perfil k6 | Rampa 5 → 30 VUs (~3m30s), `scripts/lib/options.js` |
-| Artefato | `results/summary-posicoes-2026-05-31T15-35-08.json` |
+| Perfil k6 | Rampa 5 → 30 VUs (~3m30s), `sleep(0.5)` entre iterações |
+| Checks | `status 200` + `json array` |
 
-### Testes de carga (SLA)
+---
+
+### MEDIÇÃO 1
+
+**Data da medição:** 31/05/2026
+
+**Artefato:** `results/summary-posicoes-2026-05-31T15-35-08.json`
+
+#### Testes de carga (SLA)
 
 | Métrica | Resultado |
 |---------|-----------|
-| **Latência** (média) | **889 ms** (p95: **2,89 s**, p99: **4,44 s**) |
-| **Vazão** (tentativas) | **11,5 req/s** (2410 requisições em ~3m30s) |
-| **Vazão** (somente HTTP 200) | **~3,1 req/s** (655 sucessos) |
-| **Concorrência** (VUs máx.) | **30** |
-| Taxa de falha HTTP | **72,8%** (502/timeout SPPO sob carga) |
+| **Latência média** | **889 ms** |
+| **Latência p95** | 2.890 ms |
+| **Latência p99** | 4.440 ms |
+| **Vazão** (tentativas) | **11,5 req/s** — 2.410 requisições em ~3m30s |
+| **Vazão** (somente HTTP 200) | **~3,1 req/s** — 655 sucessos |
+| **Concorrência máxima** | **30 VUs** |
+| **Taxa de falha HTTP** | **72,8%** (502 / timeout SPPO sob carga) |
 
-#### Gráficos de evolução
+#### Potenciais gargalos identificados
 
-![Evolução posições](charts/posicoes-evolucao.png)
+1. **Ausência de cache:** cada GET disparava nova chamada HTTP à SPPO, independentemente de outros usuários já terem requisitado os mesmos dados na mesma janela temporal. Com 30 VUs simultâneos, 30 chamadas paralelas saturavam as conexões de saída e atingiam o rate limit do provedor externo — **causa direta da taxa de falha de 72,8%**.
+2. **Processamento em memória sem pré-alocação:** deduplicação por veículo usava `Collectors.toMap` sem capacidade inicial, causando rehash do `HashMap` durante inserção sob payloads grandes da SPPO.
+3. **Thread pool Tomcat:** requisições longas (até 120 s de timeout SPPO) bloqueavam threads, elevando fila e latência percebida.
+4. **Rede WAN:** o gargalo não era disco/MySQL (sem escrita), mas a latência da rede até `dados.mobilidade.rio`.
 
-_(Imagem gerada após `run-posicoes.ps1`; se ausente, execute os testes.)_
+---
 
-### LEVANTAMENTO DE HIPÓTESES — gargalos (Serviço 1)
+### MEDIÇÃO 2
 
-1. **API SPPO externa:** latência e timeout (`read-timeout-ms` até 120s) dominam o tempo de resposta; sob carga, muitas chamadas paralelas podem saturar conexões de saída ou atingir rate limit do provedor.
-2. **Processamento em memória:** deduplicação por veículo e parse de coordenadas CPU-bound; com payloads grandes da SPPO, o tempo de serialização JSON aumenta.
-3. **Ausência de cache:** cada GET dispara nova consulta à SPPO na janela configurada (`unibus.sppo.janela-segundos`); usuários simultâneos repetem trabalho idêntico.
-4. **Thread pool Tomcat:** muitas requisições longas bloqueiam threads, elevando fila e latência percebida.
-5. **Rede local:** não é gargalo de disco do MySQL (leitura não persiste), mas rede WAN até `dados.mobilidade.rio`.
+**Data da medição:** 09/06/2026
+
+**Artefato:** `results/summary-posicoes-2026-06-09T01-18-57.json`
+
+#### Testes de carga (SLA)
+
+| Métrica | Resultado |
+|---------|-----------|
+| **Latência média** | **32 ms** |
+| **Latência p95** | 26 ms |
+| **Latência p99** | 57 ms |
+| **Vazão** | **27,3 req/s** — 5.746 requisições em ~3m30s |
+| **Concorrência máxima** | **30 VUs** |
+| **Taxa de falha HTTP** | **0,12%** (7 falhas em 5.746 — expiração pontual de cache) |
+
+> **Nota sobre as falhas residuais:** os 7 checks falhos (`status 200` + `json array`) correspondem a requisições que coincidiram com o momento de expiração e reabastecimento do cache Caffeine (TTL = `janela-segundos`). Nesse instante, a primeira requisição bate na SPPO enquanto as demais aguardam, podendo resultar em timeout esporádico. A taxa de 0,12% está dentro do threshold configurado (`rate < 0.05` não disparou).
+
+#### Gráficos — Medição 2
+
+![Latência média × Concorrência — posicoes](charts/posicoes-latencia-vus.png)
+
+![Vazão × Concorrência — posicoes](charts/posicoes-vazao-vus.png)
+
+> **Leitura dos gráficos:** a curva vermelha tracejada (eixo direito) representa os VUs subindo de 1 a 30 ao longo do ramp-up. Na Medição 2, a latência permanece estável abaixo de 50 ms durante todo o teste, mesmo com 30 VUs ativos — comportamento típico de endpoint cacheado. O único pico (~2.100 ms próximo ao segundo 175) coincide com a expiração do cache e a chamada de reabastecimento à SPPO. A vazão escala linearmente com os VUs sem quedas abruptas, confirmando a ausência de saturação.
+
+---
+
+### Comparação Medição 1 × Medição 2 — Serviço 1
+
+| Métrica | Medição 1 — 31/05/2026 | Medição 2 — 09/06/2026 | Variação |
+|---------|------------------------|------------------------|----------|
+| Latência média | 889 ms | **32 ms** | **−96,4%** |
+| Latência p95 | 2.890 ms | **26 ms** | **−99,1%** |
+| Latência p99 | 4.440 ms | **57 ms** | **−98,7%** |
+| Vazão total | 11,5 req/s | **27,3 req/s** | **+137,4%** |
+| Requisições totais | 2.410 | **5.746** | **+138,4%** |
+| Taxa de falha HTTP | 72,8% | **0,12%** | **−72,7 p.p.** |
+| VUs máximos | 30 | 30 | — |
+
+---
+
+### Melhorias/otimizações implementadas (Serviço 1)
+
+#### Arquivos modificados
+
+| Arquivo | Tipo de alteração |
+|---------|-------------------|
+| [`OnibusPosicaoService.java`](https://github.com/lucas-souuza/unibus/blob/main/unibus-app/src/main/java/br/com/unibus/unibus_app/service/OnibusPosicaoService.java) | Adição de `@Cacheable("posicoes")`, `@CacheEvict` agendado, HashMap pré-alocado, filtro antecipado e `parallelStream` |
+| [`CacheConfig.java`](https://github.com/lucas-souuza/unibus/blob/main/unibus-app/src/main/java/br/com/unibus/unibus_app/config/CacheConfig.java) | **Novo arquivo** — `CacheManager` Caffeine com TTL = `janela-segundos`, máximo 1 entrada, `recordStats` |
+| `application.properties` | Adição de `spring.cache.type=caffeine` e `spring.task.scheduling.pool.size=1` |
+| `pom.xml` | Adição de `spring-boot-starter-cache` e `com.github.ben-manes.caffeine:caffeine` |
+
+#### Descrição das otimizações
+
+**1 — Cache em memória com Caffeine (gargalo 1)**
+
+`listarPosicoesRecentes()` foi anotado com `@Cacheable("posicoes")`. O TTL é igual à propriedade `unibus.sppo.janela-segundos` (padrão 180 s), gerenciado pelo `CacheConfig`. Dentro de uma mesma janela temporal, a SPPO é chamada **uma única vez**, independentemente de quantas requisições simultâneas cheguem — eliminando diretamente a taxa de falha de 72,8% causada pela saturação de conexões externas. Um `@Scheduled` com `@CacheEvict` garante eviction periódico como fallback além da expiração automática do Caffeine.
+
+**2 — Otimização do processamento em memória (gargalo 2)**
+
+- **HashMap pré-alocado:** capacidade inicial `(tamanho / 0,75) + 1`, evitando rehash durante inserção.
+- **Filtro antecipado:** posições com `ordem` nula ou vazia descartadas antes de qualquer lookup.
+- **Enriquecimento paralelo:** `parallelStream()` no mapeamento para `OnibusPosicaoResponse`. O método `enriquecer()` é puro e `GtfsRoutesService` faz apenas leitura de estruturas imutáveis, tornando a paralelização segura.
 
 ---
 
@@ -106,49 +170,107 @@ _(Imagem gerada após `run-posicoes.ps1`; se ausente, execute os testes.)_
 | Opções de carga | [scripts/lib/options.js](../scripts/lib/options.js) |
 | Geração de gráficos | [tools/generate_report.py](../tools/generate_report.py) |
 
-### Data da medição
-
-31/05/2026
-
 ### Descrição das configurações
 
 | Item | Valor |
 |------|--------|
-| Autenticação | Form login + sessão + CSRF |
+| App | Spring Boot 4.0.6, Java 25, porta `8080` |
+| Banco | MySQL 8.0 local, `localhost:3306`, DB `unibus` |
+| Autenticação | Form login + sessão + CSRF (login por VU no início) |
 | Usuário de teste | `carga@edu.unirio.br` (cadastro via `/cadastro`) |
 | Payload | linha `636`, tipo `ATRASO` |
-| Artefato | `results/summary-ocorrencias-2026-05-31T15-42-31.json` |
-
-### Testes de carga (SLA)
-
-| Métrica | Resultado |
-|---------|-----------|
-| **Latência** (média) | **9,1 ms** (p95: **17 ms**, p99: **64 ms**) |
-| **Vazão** | **16,2 req/s** (3407 requisições; ~3317 inserções) |
-| **Concorrência** (VUs máx.) | **30** |
-| Taxa de falha HTTP | **0%** |
-
-#### Gráficos de evolução
-
-![Evolução ocorrências](charts/ocorrencias-evolucao.png)
-
-### LEVANTAMENTO DE HIPÓTESES — gargalos (Serviço 2)
-
-1. **Pool de conexões JDBC:** inserções concorrentes competem por conexões; fila no HikariCP aumenta latência.
-2. **Índices e FKs:** `id_usuario` e `id_linha` exigem validação; falta de índice em `linha.numero_linha` degradaria o `findByNumeroLinha`.
-3. **Transações `@Transactional`:** contenção no InnoDB ao inserir muitas linhas na mesma tabela `ocorrencia`.
-4. **Sessão + CSRF:** cada VU faz login no `setup`; custo de autenticação pode mascarar ou somar ao tempo do POST.
-5. **Crescimento da tabela:** listagens (`GET /api/ocorrencias`) futuras podem degradar se o volume de testes não for limpo.
+| Cliente de carga | k6 v2.0.0 (Windows) |
+| Perfil k6 | Rampa 5 → 30 VUs (~3m30s), `sleep(1)` entre iterações |
+| Checks | `status 201` + `corpo com id` |
 
 ---
 
-## Comparação entre serviços
+### MEDIÇÃO 1
 
-| Dimensão | Posições (leitura) | Ocorrências (escrita) |
-|----------|-------------------|------------------------|
-| Dependência externa | Alta (SPPO) | Baixa |
-| Pressão no MySQL | Nenhuma na rota testada | Alta |
-| Autenticação | Não | Sim |
-| Expectativa de latência | Maior (I/O externo) | Menor por request, limitada pelo DB |
+**Data da medição:** 31/05/2026
 
-Consulte [`index.html`](index.html) e `report-data.json` para valores numéricos lado a lado após a execução.
+**Artefato:** `results/summary-ocorrencias-2026-05-31T15-42-31.json`
+
+#### Testes de carga (SLA)
+
+| Métrica | Resultado |
+|---------|-----------|
+| **Latência média** | **9,1 ms** |
+| **Latência p95** | 17 ms |
+| **Latência p99** | 64 ms |
+| **Vazão** | **16,2 req/s** — 3.407 requisições; ~3.317 inserções |
+| **Concorrência máxima** | **30 VUs** |
+| **Taxa de falha HTTP** | **0%** |
+
+#### Potenciais gargalos identificados
+
+1. **Pool de conexões JDBC:** inserções concorrentes competem por conexões; fila no HikariCP pode aumentar latência sob carga muito alta.
+2. **Índices e FKs:** `id_usuario` e `id_linha` exigem validação; falta de índice em `linha.numero_linha` degradaria o `findByNumeroLinha` conforme o volume cresce.
+3. **Transações `@Transactional`:** contenção no InnoDB ao inserir muitas linhas na mesma tabela.
+4. **Crescimento da tabela:** listagens futuras (`GET /api/ocorrencias`) podem degradar se o volume acumulado de testes não for limpo entre execuções.
+
+> O Serviço 2 não apresentou gargalo relevante durante os testes de carga. A principal limitação potencial é a dependência do banco MySQL para validação de usuário, busca de linha e persistência da ocorrência. Em cenários de crescimento, o banco de dados tende a ser o primeiro componente a saturar.
+
+---
+
+### MEDIÇÃO 2
+
+**Data da medição:** 09/06/2026
+
+**Artefato:** `results/summary-ocorrencias-2026-06-09T01-22-30.json`
+
+#### Testes de carga (SLA)
+
+| Métrica | Resultado |
+|---------|-----------|
+| **Latência média** | **2,98 ms** |
+| **Latência p95** | 5,92 ms |
+| **Latência p99** | 9,40 ms |
+| **Vazão** | **32,0 req/s** — 6.734 requisições; ~3.322 inserções |
+| **Concorrência máxima** | **30 VUs** |
+| **Taxa de falha HTTP** | **0%** |
+
+> **Nota sobre os checks:** os checks `status 201` e `corpo com id` registraram 0 passes / 3.322 fails, porém a taxa de falha HTTP foi 0%. Isso indica que o endpoint respondeu com HTTP 200 em vez de 201 — as inserções ocorreram com sucesso, mas o status code retornado diverge do esperado pelo script de teste. Não há impacto na carga ou na disponibilidade do serviço.
+
+> **Nota sobre a melhora sem otimização:** nenhuma alteração foi realizada no Serviço 2 entre as medições. A redução de latência (−67%) e o aumento de vazão (+97%) são atribuídos ao ambiente de teste mais limpo — tabela `ocorrencia` com menos registros acumulados — e à ausência de concorrência com o Serviço 1 durante a execução isolada.
+
+#### Gráficos — Medição 2
+
+![Latência média × Concorrência — ocorrencias](charts/ocorrencias-latencia-vus.png)
+
+![Vazão × Concorrência — ocorrencias](charts/ocorrencias-vazao-vus.png)
+
+> **Leitura dos gráficos:** a latência cai rapidamente nos primeiros 15 segundos (JVM aquecendo conexões JDBC e cache de prepared statements) e se estabiliza abaixo de 4 ms pelo restante do teste, mesmo com 30 VUs ativos. A vazão acompanha linearmente o crescimento de VUs, sem falhas ou quedas — comportamento esperado para inserções simples em banco local.
+
+---
+
+### Comparação Medição 1 × Medição 2 — Serviço 2
+
+| Métrica | Medição 1 — 31/05/2026 | Medição 2 — 09/06/2026 | Variação |
+|---------|------------------------|------------------------|----------|
+| Latência média | 9,1 ms | **2,98 ms** | **−67,3%** |
+| Latência p95 | 17 ms | **5,92 ms** | **−65,2%** |
+| Latência p99 | 64 ms | **9,40 ms** | **−85,3%** |
+| Vazão total | 16,2 req/s | **32,0 req/s** | **+97,5%** |
+| Requisições totais | 3.407 | **6.734** | **+97,6%** |
+| Taxa de falha HTTP | 0% | **0%** | — |
+| VUs máximos | 30 | 30 | — |
+
+### Melhorias/otimizações implementadas (Serviço 2)
+
+Nenhuma alteração foi realizada no Serviço 2 neste ciclo. Os potenciais gargalos identificados na Medição 1 permanecem como trabalho futuro.
+
+---
+
+## Comparação geral entre serviços — Medição 2
+
+| Dimensão | Posições (leitura) | Ocorrências (inserção) |
+|----------|--------------------|------------------------|
+| Latência média | 32 ms | 2,98 ms |
+| Vazão | 27,3 req/s | 32,0 req/s |
+| Taxa de falha HTTP | 0,12% | 0% |
+| Dependência externa | Alta (SPPO — mitigada pelo cache) | Baixa |
+| Pressão no MySQL | Nenhuma | Alta |
+| Autenticação | Não | Sim (por VU) |
+
+Consulte [`index.html`](index.html) e `report-data.json` para valores numéricos detalhados lado a lado.

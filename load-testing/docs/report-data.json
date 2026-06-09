@@ -1,43 +1,45 @@
 {
-  "generated_at": "2026-06-08T14:09:01.389515+00:00",
+  "generated_at": "2026-06-09T01:22:31.923969+00:00",
   "environment_note": "Preencha após executar run-all.ps1 com app + MySQL ativos.",
   "services": {
     "posicoes": {
-      "chart": "charts/posicoes-evolucao.png",
+      "chart_latencia_vus": "charts/posicoes-latencia-vus.png",
+      "chart_vazao_vus": "charts/posicoes-vazao-vus.png",
       "throughput_intervals": {
-        "1s": 27.759,
-        "5s": 27.759,
-        "10s": 27.759,
-        "30s": 27.759,
-        "60s": 27.759
+        "1s": 27.851,
+        "5s": 27.851,
+        "10s": 27.851,
+        "30s": 27.851,
+        "60s": 27.851
       },
       "max_vus": 30.0,
-      "avg_latency_ms": 33.13,
-      "total_requests": 5702,
-      "http_req_duration_avg": 33.13333943587945,
+      "avg_latency_ms": 32.02,
+      "total_requests": 5739,
+      "http_req_duration_avg": 32.02351169509224,
       "http_reqs_rate": null,
       "http_req_failed_rate": null,
       "vus_max": 30,
-      "summary_file": "summary-posicoes-2026-06-08T14-05-25.json",
+      "summary_file": "summary-posicoes-2026-06-09T01-18-57.json",
       "measured_at": "08/06/2026"
     },
     "ocorrencias": {
-      "chart": "charts/ocorrencias-evolucao.png",
+      "chart_latencia_vus": "charts/ocorrencias-latencia-vus.png",
+      "chart_vazao_vus": "charts/ocorrencias-vazao-vus.png",
       "throughput_intervals": {
-        "1s": 32.138,
-        "5s": 32.138,
-        "10s": 32.138,
-        "30s": 32.138,
-        "60s": 32.138
+        "1s": 32.152,
+        "5s": 32.152,
+        "10s": 32.152,
+        "30s": 32.152,
+        "60s": 32.152
       },
       "max_vus": 30.0,
-      "avg_latency_ms": 3.05,
-      "total_requests": 6738,
-      "http_req_duration_avg": 3.05159122885129,
+      "avg_latency_ms": 2.98,
+      "total_requests": 6734,
+      "http_req_duration_avg": 2.976759964359961,
       "http_reqs_rate": null,
       "http_req_failed_rate": null,
       "vus_max": 30,
-      "summary_file": "summary-ocorrencias-2026-06-08T14-09-00.json",
+      "summary_file": "summary-ocorrencias-2026-06-09T01-22-30.json",
       "measured_at": "08/06/2026"
     }
   }
