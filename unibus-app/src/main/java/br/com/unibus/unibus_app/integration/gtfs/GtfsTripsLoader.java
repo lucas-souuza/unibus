@@ -58,6 +58,8 @@ public class GtfsTripsLoader {
                 String serviceId = colunas[COL_SERVICE_ID].trim();
                 String tripId = colunas[COL_TRIP_ID].trim();
                 String tripHeadsign = colunas[COL_TRIP_HEADSIGN].trim();
+                String directionId = colunas[COL_TRIP_HEADSIGN].trim();
+
                 String shapeId = colunas[COL_SHAPE_ID].trim();
 
                 if (routeId.isEmpty() || tripId.isEmpty()) {
@@ -69,6 +71,7 @@ public class GtfsTripsLoader {
                         serviceId,
                         tripId,
                         tripHeadsign,
+                        directionId,
                         shapeId
                 ));
             }

@@ -102,7 +102,7 @@
     </nav>
 
     <!-- HEADER -->
-    <header class="topbar surface">
+    <header id='topbar' class="topbar surface">
       <div>
         <div class="topbar-eyebrow">Painel operacional</div>
         <h1 id="logo-title" class="topbar-title">UNIBUS</h1>
@@ -189,103 +189,93 @@
     <main class="content-main">
 
       <!-- =====================================================================
-  HOME — section#home
-  -----------------------------------------------------------------------
-  Atributos esperados do Controller:
+           HOME — section#home
+           ---------------------------------------------------------------------
+           Atributos esperados do Controller:
 
-  Boolean:
-    temProximaLinha      → true se há um próximo horário disponível
-    operacaoNormal       → true = ícone sparkles/verde, false = ícone alert
+           Boolean:
+             operacaoNormal  → true = verde | false = alerta
 
-  Strings (nullable — todos têm fallback seguro):
-    proximaLinhaTitulo   → ex.: "Linha 302 · UNIRIO Centro"
-    proximaLinhaSubtitulo→ ex.: "Saída em 8 min · Ponto Biblioteca Central"
-    proximaSaida         → ex.: "22:00"
-    proximoTrajeto       → ex.: "14 km"
-    proximoStatus        → ex.: "No prazo"
-    routeInfo            → ex.: "Partida prevista no ponto Biblioteca Central…"
-    operacaoStatus       → ex.: "Operação normal"
+           Strings:
+             operacaoStatus  → ex.: "Operação normal"
 
-  Números (nullable):
-    linhasAtivas         → ex.: 12
-    linhasAtrasadas      → ex.: 3
+             alertaTitulo    → nullable
+             alertaSubtitulo → nullable
 
-  Alerta (nullable — cartão ciano só renderiza se alertaTitulo != null):
-    alertaTitulo         → ex.: "Mudança de rota às 22:15"
-    alertaSubtitulo      → ex.: "Campus Praia Vermelha"
-====================================================================== -->
+           Métricas:
+             linhasAtivas continuam sendo preenchidas pelo JS
+      ====================================================================== -->
 
       <section id="home" class="page page-home active">
 
         <!-- ══════════════════════════════════════════
-             HERO — estado cheio (há próxima linha)
+             HERO — HUB PRINCIPAL
         ══════════════════════════════════════════ -->
-        <div class="hero-card" th:if="${temProximaLinha}">
+        <div class="hero-card hero-card--hub">
 
           <div class="hero-top">
-            <p class="eyebrow">Próximo embarque</p>
 
-            <h2 th:text="${proximaLinhaTitulo}">—</h2>
+            <p class="eyebrow">Bem-vindo ao UNIBUS</p>
 
-            <p class="hero-sub" th:text="${proximaLinhaSubtitulo}">—</p>
+            <h2>
+              Consulte horários e acompanhe o transporte universitário
+            </h2>
 
-            <div class="hero-stats">
-              <div class="hero-stat">
-                <p>Saída</p>
-                <strong th:text="${proximaSaida ?: '—'}">—</strong>
-              </div>
-              <div class="hero-stat">
-                <p>Trajeto</p>
-                <strong th:text="${proximoTrajeto ?: '—'}">—</strong>
-              </div>
-              <div class="hero-stat">
-                <p>Status</p>
-                <strong th:text="${proximoStatus ?: '—'}">—</strong>
-              </div>
-            </div>
+            <p class="hero-sub">
+              Veja horários, acompanhe o mapa em tempo real e contribua com avaliações
+              para melhorar a experiência da comunidade acadêmica.
+            </p>
+
           </div>
 
-          <div class="hero-footer">
-            <p class="route-info"
-               th:if="${routeInfo != null and !#strings.isEmpty(routeInfo)}"
-               th:text="${routeInfo}"></p>
+          <div class="hero-actions">
 
-            <span class="badge-status" th:if="${operacaoNormal}">
-        <i data-lucide="sparkles" class="w-4 h-4" aria-hidden="true"></i>
-        <span th:text="${operacaoStatus ?: 'Operação normal'}">Operação normal</span>
-      </span>
-
-            <span class="badge-status badge-status--alert" th:unless="${operacaoNormal}">
-        <i data-lucide="triangle-alert" class="w-4 h-4" aria-hidden="true"></i>
-        <span th:text="${operacaoStatus ?: 'Atenção'}">Atenção</span>
-      </span>
-          </div>
-
-        </div>
-
-        <!-- ══════════════════════════════════════════
-             HERO — estado vazio (sem linha programada)
-        ══════════════════════════════════════════ -->
-        <div class="hero-card hero-card--empty" th:unless="${temProximaLinha}">
-          <div class="hero-empty">
-      <span class="hero-empty-icon">
-        <i data-lucide="bus" class="w-8 h-8" aria-hidden="true"></i>
-      </span>
-            <div>
-              <p class="eyebrow">Próximo embarque</p>
-              <h2>Sem linhas programadas</h2>
-              <p class="hero-sub">Não há horários disponíveis no momento. Confira a grade completa na aba Horários.</p>
-            </div>
-          </div>
-          <div class="hero-footer">
             <button
                     type="button"
                     class="pill-btn"
                     data-action="navigate"
                     data-target="horarios">
-              Ver grade horária
+              <i data-lucide="clock-3" class="w-4 h-4"></i>
+              Ver horários
             </button>
+
+            <button
+                    type="button"
+                    class="pill-btn alt"
+                    data-action="navigate"
+                    data-target="linhas">
+              <i data-lucide="star" class="w-4 h-4"></i>
+              Ver linhas
+              </button>
+
           </div>
+
+          <div class="hero-footer">
+
+      <span class="badge-status" th:if="${operacaoNormal}">
+        <i data-lucide="sparkles"
+           class="w-4 h-4"
+           aria-hidden="true"></i>
+
+        <span th:text="${operacaoStatus ?: 'Operação normal'}">
+          Operação normal
+        </span>
+      </span>
+
+            <span class="badge-status badge-status--alert"
+                  th:unless="${operacaoNormal}">
+
+        <i data-lucide="triangle-alert"
+           class="w-4 h-4"
+           aria-hidden="true"></i>
+
+        <span th:text="${operacaoStatus ?: 'Atenção'}">
+          Atenção
+        </span>
+      </span>
+
+          </div>
+
         </div>
 
         <!-- ══════════════════════════════════════════
@@ -293,80 +283,146 @@
         ══════════════════════════════════════════ -->
         <div class="home-side">
 
-          <!-- Mapa ao vivo -->
+          <!-- Mapa -->
+          <!-- ÔNIBUS PARA A UNIRIO -->
           <div class="map-card section-card">
+
             <div class="card-head">
+
               <div>
-                <h3>Mapa ao vivo</h3>
-                <p>Posição em tempo real e visualização rápida do campus</p>
+                <h3>Ônibus para a UNIRIO</h3>
+
+                <p id="home-map-info">
+                  Carregando posições...
+                </p>
               </div>
+
               <button
                       id="home-map-refresh"
                       class="pill-btn alt"
                       type="button"
-                      aria-label="Atualizar mapa">
+                      aria-label="Atualizar posições">
+
                 Atualizar
               </button>
+
             </div>
+
+            <!-- Mapa -->
             <div
                     id="map"
                     role="region"
-                    aria-label="Mapa do campus UNIRIO"></div>
-          </div>
-
-          <!-- Métricas -->
-          <div class="stats-grid">
-
-            <!-- Linhas ativas — preenchido pela atualizarMetricasHome() -->
-            <div class="metric-card dark" id="home-linhas-ativas">
-              <p>Linhas ativas</p>
-              <span class="metric-value">—</span>
-              <span class="metric-sub">Carregando...</span>
+                    aria-label="Mapa com ônibus para a UNIRIO">
             </div>
 
-            <!-- Alerta — só renderiza se houver alerta -->
-            <div class="metric-card cyan" th:if="${alertaTitulo != null}">
+            <!-- Lista rápida -->
+            <div id="home-buses-list" class="home-buses-list">
+
+              <div class="bus-loading">
+                Buscando ônibus...
+              </div>
+
+            </div>
+
+          </div>
+          <!-- MÉTRICAS -->
+          <div class="stats-grid">
+
+            <!-- LINHAS ATIVAS -->
+            <div class="metric-card dark" id="home-linhas-ativas">
+
+              <p>Linhas ativas</p>
+
+              <span class="metric-value">
+          —
+        </span>
+
+              <span class="metric-sub">
+          Carregando...
+        </span>
+
+            </div>
+
+            <!-- STATUS / ALERTA -->
+            <div class="metric-card cyan"
+                 th:if="${alertaTitulo != null}">
+
               <p>Alerta</p>
+
               <span
                       class="metric-value metric-value--sm"
-                      th:text="${alertaTitulo}">—</span>
+                      th:text="${alertaTitulo}">
+          —
+        </span>
+
               <span
                       class="metric-sub"
                       th:if="${alertaSubtitulo != null}"
-                      th:text="${alertaSubtitulo}">—</span>
+                      th:text="${alertaSubtitulo}">
+          —
+        </span>
+
             </div>
 
-            <!-- Placeholder quando não há alerta -->
-            <div class="metric-card metric-card--muted" th:unless="${alertaTitulo != null}">
-              <p>Alertas</p>
+            <div class="metric-card metric-card--muted"
+                 th:unless="${alertaTitulo != null}">
+
+              <p>Status da operação</p>
+
               <span class="metric-value metric-value--sm metric-value--ok">
-      <i data-lucide="check-circle-2" class="w-6 h-6" aria-hidden="true"></i>
-      Tudo normal
-    </span>
-              <span class="metric-sub">Nenhum alerta ativo no momento</span>
+
+          <i data-lucide="check-circle-2"
+             class="w-6 h-6"
+             aria-hidden="true"></i>
+
+          Tudo normal
+
+        </span>
+
+              <span class="metric-sub">
+          Nenhum alerta ativo no momento
+        </span>
+
             </div>
 
           </div>
-        <!-- ══════════════════════════════════════════
-             TUTORIAL CTA
-        ══════════════════════════════════════════ -->
-        <button
-                type="button"
-                class="tutorial-card"
-                data-action="tutorial"
-                aria-label="Abrir tutorial de uso do UNIBUS">
-          <div class="tutorial-icon" aria-hidden="true">
-            <i data-lucide="graduation-cap" class="w-6 h-6"></i>
-          </div>
-          <div>
-            <p class="eyebrow">Novo por aqui?</p>
-            <h4>Veja como usar o UNIBUS e acompanhe linhas, horários e avaliações</h4>
-          </div>
-          <i data-lucide="chevron-right" class="w-5 h-5 chevron" aria-hidden="true"></i>
-        </button>
+
+          <!-- TUTORIAL -->
+          <button
+                  type="button"
+                  class="tutorial-card"
+                  data-action="tutorial"
+                  aria-label="Abrir tutorial de uso do UNIBUS">
+
+            <div class="tutorial-icon" aria-hidden="true">
+
+              <i data-lucide="graduation-cap"
+                 class="w-6 h-6"></i>
+
+            </div>
+
+            <div>
+
+              <p class="eyebrow">
+                Novo por aqui?
+              </p>
+
+              <h4>
+                Veja como usar o UNIBUS e acompanhe linhas,
+                horários e avaliações
+              </h4>
+
+            </div>
+
+            <i data-lucide="chevron-right"
+               class="w-5 h-5 chevron"
+               aria-hidden="true"></i>
+
+          </button>
+
+        </div>
 
       </section>
-
       <!-- RASTREIO -->
       <section id="rastreio" class="page page-rastreio">
         <div class="rastreio-head">
@@ -1008,39 +1064,73 @@
           </div>
         </div>
 
-        <div id="schedule-tabs" class="schedule-tabs">
-          <button class="schedule-pill is-active" type="button" data-linha="302">302</button>
-          <button class="schedule-pill" type="button" data-linha="415">415</button>
-          <button class="schedule-pill" type="button" data-linha="108">108</button>
+        <!-- Busca de linha -->
+        <div class="schedule-search-wrap">
+          <div class="schedule-search-field">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                 class="schedule-search-icon" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+                    id="schedule-line-search"
+                    type="text"
+                    class="schedule-search-input"
+                    placeholder="Buscar linha (ex: 302, Terminal...)"
+                    autocomplete="off"
+                    aria-label="Buscar linha de ônibus"
+                    aria-autocomplete="list"
+                    aria-controls="schedule-line-results"
+                    aria-expanded="false"
+            />
+          </div>
+
+          <!-- Dropdown de resultados -->
+          <ul
+                  id="schedule-line-results"
+                  class="schedule-results-list"
+                  role="listbox"
+                  aria-label="Resultados da busca"
+                  hidden
+          ></ul>
         </div>
 
+        <!-- Card principal -->
         <div id="schedule-wrap" class="schedule-wrap">
           <div class="schedule-card section-card">
             <div class="card-top">
               <div>
                 <div class="eyebrow">Linha selecionada</div>
-                <h3 id="schedule-title" style="margin:6px 0 0;font-size:1.12rem;font-weight:800;">302</h3>
+                <h3 id="schedule-title" style="margin:6px 0 0;font-size:1.12rem;font-weight:800;">—</h3>
               </div>
               <span class="status-chip" style="background:#F5CF27;color:#000;">Hoje</span>
             </div>
 
-            <div id="schedule-loading" class="muted" style="margin-top:16px;">
+            <!-- Estado: aguardando seleção -->
+            <div id="schedule-placeholder" class="muted" style="margin-top:16px;">
+              Digite o número ou nome da linha para ver os horários.
+            </div>
+
+            <!-- Estado: carregando -->
+            <div id="schedule-loading" class="muted" style="margin-top:16px;" hidden>
               Carregando horários...
             </div>
 
+            <!-- Estado: conteúdo -->
             <div id="schedule-content" hidden></div>
 
+            <!-- Estado: vazio -->
             <div id="schedule-empty" class="muted" style="margin-top:16px;" hidden>
               Nenhum horário encontrado para esta linha.
             </div>
 
+            <!-- Estado: erro -->
             <div id="schedule-error" class="muted" style="margin-top:16px;color:#b42318;" hidden>
               Não foi possível carregar os horários agora.
             </div>
           </div>
         </div>
       </section>
-
       <!-- PERFIL -->
       <section id="perfil" class="page">
         <div class="section-head">
@@ -1228,10 +1318,12 @@
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <script th:src="@{marker/bus-marker.js}" src="/marker/bus-marker.js"></script>
+      <script th:src="@{marker/bus-marker.js}" src="/marker/bs-marker.js"></script>
   <link rel="stylesheet" th:href="@{/dist/rastreio/rastreio.css}" href="/dist/rastreio/rastreio.css" />
   <script type="module" th:src="@{/dist/rastreio/rastreio.js}" src="/dist/rastreio/rastreio.js"></script>
   <script th:src="@{/js/index.js}" src="/js/index.js"></script>
+      <script src="/js/home-map.js" th:src="@{/js/home-map.js}"></script>
+      <script src="/js/horarios.js" th:src="@{/js/horarios.js}"></script>
 
 
   <script th:inline="javascript">

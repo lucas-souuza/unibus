@@ -5,6 +5,7 @@ public record GtfsTrip(
         String serviceId,
         String tripId,
         String tripHeadsign,
+        String directionId,   // "0" (ida) ou "1" (volta) — pode ser null/vazio no GTFS
         String shapeId
 ) {
 }

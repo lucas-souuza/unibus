@@ -101,7 +101,7 @@ function showPage(target) {
 
   if (target === 'home') {
     setTimeout(() => {
-      initMap();
+      UnibusHomeMap.mount();
       atualizarMetricasHome();
       if (map) map.invalidateSize();
     }, 150);
@@ -588,10 +588,13 @@ function centerMap() {
       const modal = document.getElementById('tutorial-modal');
       const overlay = document.getElementById('tutorial-overlay');
       const panel = document.getElementById('tutorial-panel');
+      const topbar = document.getElementById('topbar');
 
+      topbar.style.display = 'none';
       modal.classList.remove('pointer-events-none');
       overlay.style.pointerEvents = 'auto';
       panel.style.pointerEvents = 'auto';
+      topbar
 
       requestAnimationFrame(() => {
         overlay.style.opacity = '1';
@@ -604,7 +607,9 @@ function centerMap() {
       const modal = document.getElementById('tutorial-modal');
       const overlay = document.getElementById('tutorial-overlay');
       const panel = document.getElementById('tutorial-panel');
+      const topbar = document.getElementById('topbar');
 
+      topbar.style.display = 'flex';
       overlay.style.opacity = '0';
       overlay.style.pointerEvents = 'none';
       panel.style.opacity = '0';
@@ -657,168 +662,321 @@ function centerMap() {
         });
       });
     })();
-    //itinerarios
-    const scheduleTabs = document.getElementById('schedule-tabs');
-    const scheduleTitle = document.getElementById('schedule-title');
-    const scheduleLoading = document.getElementById('schedule-loading');
-    const scheduleContent = document.getElementById('schedule-content');
-    const scheduleEmpty = document.getElementById('schedule-empty');
-    const scheduleError = document.getElementById('schedule-error');
+    // ─────────────────────────────────────────────
+    //  Section: Horários
+    //  Depende dos IDs:
+    //    schedule-line-search, schedule-line-results,
+    //    schedule-title, schedule-loading,
+    //    schedule-content, schedule-empty,
+    //    schedule-error, schedule-placeholder
+    // ─────────────────────────────────────────────
 
-    function formatarHorario(horario) {
-      if (!horario) return '—';
+    (function () {
+      // ── Referências do DOM ──────────────────────
+      const searchInput     = document.getElementById('schedule-line-search');
+      const searchResults   = document.getElementById('schedule-line-results');
+      const scheduleTitle   = document.getElementById('schedule-title');
+      const schedulePlaceholder = document.getElementById('schedule-placeholder');
+      const scheduleLoading = document.getElementById('schedule-loading');
+      const scheduleContent = document.getElementById('schedule-content');
+      const scheduleEmpty   = document.getElementById('schedule-empty');
+      const scheduleError   = document.getElementById('schedule-error');
 
-      const partes = horario.split(':');
-      if (partes.length < 2) return horario;
+      // Aborta se a section não estiver na página
+      if (!searchInput) return;
 
-      const horas = partes[0].padStart(2, '0');
-      const minutos = partes[1].padStart(2, '0');
-      return `${horas}:${minutos}`;
-    }
-
-    function limparEstadoHorarios() {
-      if (scheduleLoading) scheduleLoading.hidden = true;
-      if (scheduleContent) {
-        scheduleContent.hidden = true;
-        scheduleContent.innerHTML = '';
-      }
-      if (scheduleEmpty) scheduleEmpty.hidden = true;
-      if (scheduleError) scheduleError.hidden = true;
-    }
-
-    function renderizarHorarios(data) {
-      limparEstadoHorarios();
-
-      const linhaLabel = data.nomeLinha && data.nomeLinha.trim()
-        ? `${data.linha} · ${data.nomeLinha}`
-        : data.linha;
-
-      if (scheduleTitle) {
-        scheduleTitle.textContent = linhaLabel;
+      // ── Debounce helper ─────────────────────────
+      function debounce(fn, delay) {
+        let timer;
+        return (...args) => {
+          clearTimeout(timer);
+          timer = setTimeout(() => fn(...args), delay);
+        };
       }
 
-      if (!data.itinerarios || data.itinerarios.length === 0) {
-        if (scheduleEmpty) scheduleEmpty.hidden = false;
-        return;
+      // ── Formata "07:5:3" → "07:05" ──────────────
+      function formatarHorario(horario) {
+        if (!horario) return '—';
+        const partes = horario.split(':');
+        if (partes.length < 2) return horario;
+        const h = partes[0].padStart(2, '0');
+        const m = partes[1].padStart(2, '0');
+        return `${h}:${m}`;
       }
 
-      const html = data.itinerarios.map((itinerario, index) => {
-        const horarios = itinerario.horarios || [];
+      // ── Controle de estados ──────────────────────
+      function limparEstados() {
+        schedulePlaceholder && (schedulePlaceholder.hidden = true);
+        scheduleLoading     && (scheduleLoading.hidden     = true);
+        scheduleContent     && (scheduleContent.hidden     = true);
+        scheduleEmpty       && (scheduleEmpty.hidden       = true);
+        scheduleError       && (scheduleError.hidden       = true);
+        if (scheduleContent) scheduleContent.innerHTML = '';
+      }
 
-        if (horarios.length === 0) {
+      function mostrarEstado(estado) {
+        limparEstados();
+        const mapa = {
+          placeholder: schedulePlaceholder,
+          loading:     scheduleLoading,
+          content:     scheduleContent,
+          empty:       scheduleEmpty,
+          error:       scheduleError,
+        };
+        const el = mapa[estado];
+        if (el) el.hidden = false;
+      }
+
+      // ── Dropdown de busca ─────────────────────────
+      function fecharDropdown() {
+        if (searchResults) searchResults.hidden = true;
+        if (searchInput)   searchInput.setAttribute('aria-expanded', 'false');
+      }
+
+      function abrirDropdown() {
+        if (searchResults) searchResults.hidden = false;
+        if (searchInput)   searchInput.setAttribute('aria-expanded', 'true');
+      }
+
+      function renderizarResultados(linhas) {
+        if (!searchResults) return;
+
+        searchResults.innerHTML = '';
+
+        if (!linhas || linhas.length === 0) {
+          const li = document.createElement('li');
+          li.className = 'schedule-result-item schedule-result-empty';
+          li.textContent = 'Nenhuma linha encontrada.';
+          li.setAttribute('role', 'option');
+          searchResults.appendChild(li);
+          abrirDropdown();
+          return;
+        }
+
+        linhas.forEach(linha => {
+          const li = document.createElement('li');
+          li.className = 'schedule-result-item';
+          li.setAttribute('role', 'option');
+          li.setAttribute('tabindex', '0');
+          li.dataset.numero = linha.numero;
+
+          // Monta label: "302 · Terminal Integrado" ou só "302"
+          const label = linha.nome && linha.nome.trim()
+            ? `<strong>${linha.numero}</strong> · <span>${linha.nome}</span>`
+            : `<strong>${linha.numero}</strong>`;
+          li.innerHTML = label;
+
+          const selecionar = () => {
+            searchInput.value = linha.numero;
+            fecharDropdown();
+            carregarHorariosLinha(linha.numero);
+          };
+
+          li.addEventListener('click', selecionar);
+          li.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              selecionar();
+            }
+          });
+
+          searchResults.appendChild(li);
+        });
+
+        abrirDropdown();
+      }
+
+      // ── Busca de linhas (autocomplete) ───────────
+      const buscarLinhas = debounce(async (termo) => {
+        if (!termo || termo.trim().length < 1) {
+          fecharDropdown();
+          return;
+        }
+
+        try {
+          const url = `/api/linhas?q=${encodeURIComponent(termo.trim())}&limit=8`;
+          const res = await fetch(url, { headers: { Accept: 'application/json' } });
+
+          if (!res.ok) {
+            fecharDropdown();
+            return;
+          }
+
+          const linhas = await res.json();
+          renderizarResultados(linhas);
+        } catch (err) {
+          console.error('Erro ao buscar linhas:', err);
+          fecharDropdown();
+        }
+      }, 300);
+
+      searchInput.addEventListener('input', (e) => {
+        buscarLinhas(e.target.value);
+      });
+
+      searchInput.addEventListener('focus', (e) => {
+        if (e.target.value.trim().length >= 1) {
+          buscarLinhas(e.target.value);
+        }
+      });
+
+      // Fecha dropdown ao clicar fora
+      document.addEventListener('click', (e) => {
+        const dentroDoSearch = searchInput.contains(e.target) ||
+                               (searchResults && searchResults.contains(e.target));
+        if (!dentroDoSearch) fecharDropdown();
+      });
+
+      // Navegação por teclado no dropdown (↑ ↓ Esc)
+      searchInput.addEventListener('keydown', (e) => {
+        if (!searchResults || searchResults.hidden) return;
+
+        const itens = Array.from(searchResults.querySelectorAll('.schedule-result-item[tabindex]'));
+        if (!itens.length) return;
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          itens[0].focus();
+        } else if (e.key === 'Escape') {
+          fecharDropdown();
+        }
+      });
+
+      if (searchResults) {
+        searchResults.addEventListener('keydown', (e) => {
+          const itens = Array.from(searchResults.querySelectorAll('.schedule-result-item[tabindex]'));
+          const atual = document.activeElement;
+          const idx   = itens.indexOf(atual);
+
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            itens[Math.min(idx + 1, itens.length - 1)]?.focus();
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (idx <= 0) searchInput.focus();
+            else itens[idx - 1]?.focus();
+          } else if (e.key === 'Escape') {
+            fecharDropdown();
+            searchInput.focus();
+          }
+        });
+      }
+
+      // ── Renderização dos horários ────────────────
+      function renderizarHorarios(data) {
+        limparEstados();
+
+        const linhaLabel = data.nomeLinha && data.nomeLinha.trim()
+          ? `${data.linha} · ${data.nomeLinha}`
+          : data.linha;
+
+        if (scheduleTitle) scheduleTitle.textContent = linhaLabel;
+
+        if (!data.itinerarios || data.itinerarios.length === 0) {
+          mostrarEstado('empty');
+          return;
+        }
+
+        const html = data.itinerarios.map((itinerario, index) => {
+          const horarios = itinerario.horarios || [];
+          const marginTop = index === 0 ? '18px' : '24px';
+
+          if (horarios.length === 0) {
+            return `
+              <div class="schedule-itinerary-block" style="margin-top:${marginTop};">
+                <div class="card-top" style="margin-bottom:12px;">
+                  <div>
+                    <div class="eyebrow">Itinerário</div>
+                    <h4 style="margin:6px 0 0;font-size:1rem;font-weight:800;">${escapeHtml(itinerario.itinerario)}</h4>
+                  </div>
+                </div>
+                <div class="trip-row">
+                  <div>
+                    <p>Horários</p>
+                    <strong>Nenhum horário disponível</strong>
+                  </div>
+                </div>
+              </div>`;
+          }
+
+          const primeiro  = horarios[0];
+          const restantes = horarios.slice(1);
+
           return `
-            <div class="schedule-itinerary-block" style="margin-top:${index === 0 ? '18px' : '24px'};">
+            <div class="schedule-itinerary-block" style="margin-top:${marginTop};">
               <div class="card-top" style="margin-bottom:12px;">
                 <div>
                   <div class="eyebrow">Itinerário</div>
-                  <h4 style="margin:6px 0 0;font-size:1rem;font-weight:800;">${itinerario.itinerario}</h4>
+                  <h4 style="margin:6px 0 0;font-size:1rem;font-weight:800;">${escapeHtml(itinerario.itinerario)}</h4>
                 </div>
               </div>
 
-              <div class="trip-row">
+              <div class="trip-featured">
                 <div>
-                  <p>Horários</p>
-                  <strong>Nenhum horário disponível</strong>
+                  <p>Próxima saída</p>
+                  <strong>${formatarHorario(primeiro)}</strong>
                 </div>
-              </div>
-            </div>
-          `;
-        }
-
-        const primeiro = horarios[0];
-        const restantes = horarios.slice(1);
-
-        return `
-          <div class="schedule-itinerary-block" style="margin-top:${index === 0 ? '18px' : '24px'};">
-            <div class="card-top" style="margin-bottom:12px;">
-              <div>
-                <div class="eyebrow">Itinerário</div>
-                <h4 style="margin:6px 0 0;font-size:1rem;font-weight:800;">${itinerario.itinerario}</h4>
-              </div>
-            </div>
-
-            <div class="trip-featured">
-              <div>
-                <p>Próxima saída</p>
-                <strong>${formatarHorario(primeiro)}</strong>
-              </div>
-              <div>
-                <p>Sentido</p>
-                <strong>${itinerario.itinerario}</strong>
-              </div>
-              <span class="tag-next">Próximo</span>
-            </div>
-
-            ${restantes.map(horario => `
-              <div class="trip-row">
                 <div>
-                  <p>Saída</p>
-                  <strong>${formatarHorario(horario)}</strong>
+                  <p>Sentido</p>
+                  <strong>${escapeHtml(itinerario.itinerario)}</strong>
                 </div>
-                <div style="text-align:right;">
-                  <p>Itinerário</p>
-                  <strong>${itinerario.itinerario}</strong>
-                </div>
+                <span class="tag-next">Próximo</span>
               </div>
-            `).join('')}
-          </div>
-        `;
-      }).join('');
 
-      scheduleContent.innerHTML = html;
-      scheduleContent.hidden = false;
-    }
+              ${restantes.map(h => `
+                <div class="trip-row">
+                  <div>
+                    <p>Saída</p>
+                    <strong>${formatarHorario(h)}</strong>
+                  </div>
+                  <div style="text-align:right;">
+                    <p>Itinerário</p>
+                    <strong>${escapeHtml(itinerario.itinerario)}</strong>
+                  </div>
+                </div>`).join('')}
+            </div>`;
+        }).join('');
 
-    async function carregarHorariosLinha(numeroLinha) {
-      limparEstadoHorarios();
+        scheduleContent.innerHTML = html;
+        mostrarEstado('content');
+      }
 
-      if (scheduleLoading) scheduleLoading.hidden = false;
-      if (scheduleTitle) scheduleTitle.textContent = numeroLinha;
+      // XSS guard mínimo
+      function escapeHtml(str) {
+        if (!str) return '';
+        return str
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
 
-      try {
-        const response = await fetch(`/api/linhas/${encodeURIComponent(numeroLinha)}/horarios`, {
-          headers: {
-            Accept: 'application/json'
-          }
-        });
+      // ── Carrega horários de uma linha ─────────────
+      async function carregarHorariosLinha(numeroLinha) {
+        limparEstados();
+        mostrarEstado('loading');
+        if (scheduleTitle) scheduleTitle.textContent = numeroLinha;
 
-        if (!response.ok) {
-          throw new Error(`Erro HTTP ${response.status}`);
+        try {
+          const res = await fetch(
+            `/api/linhas/${encodeURIComponent(numeroLinha)}/horarios`,
+            { headers: { Accept: 'application/json' } }
+          );
+
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+          const data = await res.json();
+          renderizarHorarios(data);
+        } catch (err) {
+          console.error('Erro ao carregar horários:', err);
+          limparEstados();
+          mostrarEstado('error');
         }
-
-        const data = await response.json();
-        renderizarHorarios(data);
-      } catch (error) {
-        console.error('Erro ao carregar horários:', error);
-        limparEstadoHorarios();
-        if (scheduleError) scheduleError.hidden = false;
       }
-    }
 
-    if (scheduleTabs) {
-      scheduleTabs.addEventListener('click', (event) => {
-        const button = event.target.closest('.schedule-pill');
-        if (!button) return;
-
-        const linha = button.dataset.linha;
-        if (!linha) return;
-
-        scheduleTabs.querySelectorAll('.schedule-pill').forEach(tab => {
-          tab.classList.remove('is-active');
-        });
-
-        button.classList.add('is-active');
-        carregarHorariosLinha(linha);
-      });
-
-      const inicial =
-        scheduleTabs.querySelector('.schedule-pill.is-active') ||
-        scheduleTabs.querySelector('.schedule-pill');
-
-      if (inicial?.dataset.linha) {
-        carregarHorariosLinha(inicial.dataset.linha);
-      }
-    }
+      // ── Estado inicial ────────────────────────────
+      mostrarEstado('placeholder');
+    })();
     // Ocorrências
     const ocorrenciasTipos = {
       superlotacao: { label: 'Superlotação', icon: 'users' },
@@ -1443,3 +1601,148 @@ function centerMap() {
     }
 
     atualizarResumoRota();
+
+    //mapa-home
+    const LINHAS_UNIRIO = ["107", "167", "513", "518", "519"];
+
+    const CORES_LINHAS = {
+        "107": "#3B82F6",
+        "167": "#22C55E",
+        "513": "#F5CF27",
+        "518": "#A855F7",
+        "519": "#EF4444"
+    };
+
+    async function atualizarMapaUnirio() {
+
+        try {
+
+            const response = await fetch("/api/onibus/posicoes");
+
+            const posicoes = await response.json();
+
+            const onibusUnirio = posicoes.filter(o =>
+                LINHAS_UNIRIO.includes(String(o.linha))
+            );
+
+            renderizarMapa(onibusUnirio);
+
+            renderizarLista(onibusUnirio);
+
+            atualizarInfoMapa(onibusUnirio);
+
+        }
+        catch (e) {
+
+            console.error(e);
+
+        }
+    }
+    function atualizarInfoMapa(onibus) {
+
+        const info = document.getElementById("home-map-info");
+
+        const hora = new Date().toLocaleTimeString(
+            "pt-BR",
+            {
+                hour: "2-digit",
+                minute: "2-digit"
+            }
+        );
+
+        info.textContent =
+            `${onibus.length} ônibus monitorados • atualizado às ${hora}`;
+    }
+    function renderizarLista(onibus) {
+
+        const lista = document.getElementById("home-buses-list");
+
+        if (!onibus.length) {
+
+            lista.innerHTML = `
+                <div class="bus-loading">
+                    Nenhum ônibus encontrado no momento.
+                </div>
+            `;
+
+            return;
+        }
+
+        lista.innerHTML = onibus.map(bus => {
+
+            const cor = CORES_LINHAS[bus.linha] || "#CBD5E1";
+
+            return `
+                <div class="bus-item">
+
+                    <div class="bus-item-left">
+
+                        <div
+                            class="bus-line"
+                            style="background:${cor}">
+
+                            ${bus.linha}
+
+                        </div>
+
+                        <div class="bus-info">
+
+                            <strong>Linha ${bus.linha}</strong>
+
+                            <span>
+                                Atualização em tempo real
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                    <div class="bus-time">
+
+                        Agora
+
+                    </div>
+
+                </div>
+            `;
+
+        }).join("");
+    }
+    markersLayer.clearLayers();
+
+    onibus.forEach(bus => {
+
+        const cor = CORES_LINHAS[bus.linha] || "#64748B";
+
+        L.circleMarker(
+            [bus.latitude, bus.longitude],
+            {
+                radius: 8,
+                color: cor,
+                fillColor: cor,
+                fillOpacity: 0.9,
+                weight: 2
+            }
+        )
+        .bindPopup(`
+            <strong>Linha ${bus.linha}</strong><br>
+            Atualização em tempo real
+        `)
+        .addTo(markersLayer);
+
+    });
+
+    atualizarMapaUnirio();
+
+    setInterval(
+        atualizarMapaUnirio,
+        30000
+    );
+
+    document
+        .getElementById("home-map-refresh")
+        .addEventListener(
+            "click",
+            atualizarMapaUnirio
+        );
+
