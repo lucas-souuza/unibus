@@ -9,7 +9,8 @@ public record RotaResponse(
         String origem,
         String destino,
         String descricao,
-        LocalDateTime criadoEm
+        LocalDateTime criadoEm,
+        String nomeUsuario
 ) {
 
     public static RotaResponse from(Rota rota) {
@@ -18,8 +19,8 @@ public record RotaResponse(
                 rota.getOrigem(),
                 rota.getDestino(),
                 rota.getDescricao(),
-                rota.getCriadoEm()
+                rota.getCriadoEm(),
+                rota.getUsuario() != null ? rota.getUsuario().getNome() : null
         );
     }
-
 }

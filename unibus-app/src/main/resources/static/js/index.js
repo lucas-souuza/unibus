@@ -632,7 +632,193 @@ function centerMap() {
         menu.classList.remove('open');
       }
     });
+    (function () {
+      const tabs = document.querySelectorAll('[data-rota-tab]');
+      const panels = document.querySelectorAll('.rota-panel');
 
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const target = tab.dataset.rotaTab;
+
+          tabs.forEach(t => {
+            t.classList.remove('is-active');
+            t.setAttribute('aria-selected', 'false');
+          });
+
+          panels.forEach(panel => {
+            panel.style.display = 'none';
+          });
+
+          tab.classList.add('is-active');
+          tab.setAttribute('aria-selected', 'true');
+
+          const activePanel = document.getElementById(`rota-panel-${target}`);
+          if (activePanel) activePanel.style.display = '';
+        });
+      });
+    })();
+    //itinerarios
+    const scheduleTabs = document.getElementById('schedule-tabs');
+    const scheduleTitle = document.getElementById('schedule-title');
+    const scheduleLoading = document.getElementById('schedule-loading');
+    const scheduleContent = document.getElementById('schedule-content');
+    const scheduleEmpty = document.getElementById('schedule-empty');
+    const scheduleError = document.getElementById('schedule-error');
+
+    function formatarHorario(horario) {
+      if (!horario) return '—';
+
+      const partes = horario.split(':');
+      if (partes.length < 2) return horario;
+
+      const horas = partes[0].padStart(2, '0');
+      const minutos = partes[1].padStart(2, '0');
+      return `${horas}:${minutos}`;
+    }
+
+    function limparEstadoHorarios() {
+      if (scheduleLoading) scheduleLoading.hidden = true;
+      if (scheduleContent) {
+        scheduleContent.hidden = true;
+        scheduleContent.innerHTML = '';
+      }
+      if (scheduleEmpty) scheduleEmpty.hidden = true;
+      if (scheduleError) scheduleError.hidden = true;
+    }
+
+    function renderizarHorarios(data) {
+      limparEstadoHorarios();
+
+      const linhaLabel = data.nomeLinha && data.nomeLinha.trim()
+        ? `${data.linha} · ${data.nomeLinha}`
+        : data.linha;
+
+      if (scheduleTitle) {
+        scheduleTitle.textContent = linhaLabel;
+      }
+
+      if (!data.itinerarios || data.itinerarios.length === 0) {
+        if (scheduleEmpty) scheduleEmpty.hidden = false;
+        return;
+      }
+
+      const html = data.itinerarios.map((itinerario, index) => {
+        const horarios = itinerario.horarios || [];
+
+        if (horarios.length === 0) {
+          return `
+            <div class="schedule-itinerary-block" style="margin-top:${index === 0 ? '18px' : '24px'};">
+              <div class="card-top" style="margin-bottom:12px;">
+                <div>
+                  <div class="eyebrow">Itinerário</div>
+                  <h4 style="margin:6px 0 0;font-size:1rem;font-weight:800;">${itinerario.itinerario}</h4>
+                </div>
+              </div>
+
+              <div class="trip-row">
+                <div>
+                  <p>Horários</p>
+                  <strong>Nenhum horário disponível</strong>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        const primeiro = horarios[0];
+        const restantes = horarios.slice(1);
+
+        return `
+          <div class="schedule-itinerary-block" style="margin-top:${index === 0 ? '18px' : '24px'};">
+            <div class="card-top" style="margin-bottom:12px;">
+              <div>
+                <div class="eyebrow">Itinerário</div>
+                <h4 style="margin:6px 0 0;font-size:1rem;font-weight:800;">${itinerario.itinerario}</h4>
+              </div>
+            </div>
+
+            <div class="trip-featured">
+              <div>
+                <p>Próxima saída</p>
+                <strong>${formatarHorario(primeiro)}</strong>
+              </div>
+              <div>
+                <p>Sentido</p>
+                <strong>${itinerario.itinerario}</strong>
+              </div>
+              <span class="tag-next">Próximo</span>
+            </div>
+
+            ${restantes.map(horario => `
+              <div class="trip-row">
+                <div>
+                  <p>Saída</p>
+                  <strong>${formatarHorario(horario)}</strong>
+                </div>
+                <div style="text-align:right;">
+                  <p>Itinerário</p>
+                  <strong>${itinerario.itinerario}</strong>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }).join('');
+
+      scheduleContent.innerHTML = html;
+      scheduleContent.hidden = false;
+    }
+
+    async function carregarHorariosLinha(numeroLinha) {
+      limparEstadoHorarios();
+
+      if (scheduleLoading) scheduleLoading.hidden = false;
+      if (scheduleTitle) scheduleTitle.textContent = numeroLinha;
+
+      try {
+        const response = await fetch(`/api/linhas/${encodeURIComponent(numeroLinha)}/horarios`, {
+          headers: {
+            Accept: 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Erro HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        renderizarHorarios(data);
+      } catch (error) {
+        console.error('Erro ao carregar horários:', error);
+        limparEstadoHorarios();
+        if (scheduleError) scheduleError.hidden = false;
+      }
+    }
+
+    if (scheduleTabs) {
+      scheduleTabs.addEventListener('click', (event) => {
+        const button = event.target.closest('.schedule-pill');
+        if (!button) return;
+
+        const linha = button.dataset.linha;
+        if (!linha) return;
+
+        scheduleTabs.querySelectorAll('.schedule-pill').forEach(tab => {
+          tab.classList.remove('is-active');
+        });
+
+        button.classList.add('is-active');
+        carregarHorariosLinha(linha);
+      });
+
+      const inicial =
+        scheduleTabs.querySelector('.schedule-pill.is-active') ||
+        scheduleTabs.querySelector('.schedule-pill');
+
+      if (inicial?.dataset.linha) {
+        carregarHorariosLinha(inicial.dataset.linha);
+      }
+    }
     // Ocorrências
     const ocorrenciasTipos = {
       superlotacao: { label: 'Superlotação', icon: 'users' },

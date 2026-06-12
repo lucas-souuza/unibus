@@ -3,6 +3,7 @@ package br.com.unibus.unibus_app.controller;
 import br.com.unibus.unibus_app.model.Usuario;
 import br.com.unibus.unibus_app.service.LinhaService;
 import br.com.unibus.unibus_app.service.OcorrenciaService;
+import br.com.unibus.unibus_app.service.RotaService;
 import br.com.unibus.unibus_app.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -19,6 +20,7 @@ public class AuthViewController {
 
     private final UsuarioService service;
     private final OcorrenciaService ocorrenciaService;
+    private final RotaService rotaService;
 
     @GetMapping("/login")
     public String loginPage() {
@@ -34,7 +36,7 @@ public class AuthViewController {
     public String homePage(Authentication authentication, Model model) {
 
         model.addAttribute("ocorrencias", ocorrenciaService.listarTodasPorRecencia());
-
+        model.addAttribute("rotas", rotaService.listarTodasPorRecencia());
         model.addAttribute("temProximaLinha", false);
         model.addAttribute("alertaTitulo",    null);
         model.addAttribute("operacaoNormal",  true);
@@ -50,7 +52,6 @@ public class AuthViewController {
                 model.addAttribute("usuarioIniciais", gerarIniciais(usuario.getNome()));
             }
         }
-
         return "index";
     }
 

@@ -58,5 +58,10 @@ public class RotaService {
 
         return RotaResponse.from(rotaRepository.save(rota));
     }
-
+    public List<RotaResponse> listarTodasPorRecencia() {
+        return rotaRepository.findAllByOrderByCriadoEmDesc()
+                .stream()
+                .map(RotaResponse::from)
+                .toList();
+    }
 }

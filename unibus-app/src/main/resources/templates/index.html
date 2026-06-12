@@ -710,6 +710,7 @@
           <span id="ocorrencia-toast-text">Ocorrência registrada com sucesso.</span>
         </div>
       </section>
+
       <!-- LINHAS -->
       <section id="linhas" class="page">
         <div class="section-head">
@@ -790,129 +791,206 @@
           </div>
         </div>
       </section>
+      <!-- =====================================================================
+        ROTAS — duas abas:
+          · "Registros"  → lista paginada do banco (Thymeleaf)
+          · "Nova"       → formulário já existente
 
-      <!-- ROTAS -->
+        Modelo esperado no Controller:
+          model.addAttribute("rotas", List<RotaListaDto>)
+
+        RotaListaDto deve expor:
+          id, origem, destino, descricao, criadoEm (LocalDateTime), nomeUsuario
+      ====================================================================== -->
+
       <section id="rotas" class="page" th:attr="data-usuario-logado=${usuarioNome != null}">
-        <div class="section-head">
+
+        <div class="section-head rotas-head">
           <div>
             <h2>Rotas</h2>
             <p>Compartilhe como você vai de um lugar a outro, com base na sua experiência</p>
           </div>
-        </div>
 
-        <div class="rotas-layout">
-          <div class="rotas-form section-card">
-            <div class="rotas-block">
-              <div class="rotas-block-head">
-                <span class="rotas-step">1</span>
-                <div>
-                  <h3>Origem</h3>
-                  <p>De onde você sai (qualquer bairro ou ponto)</p>
-                </div>
-              </div>
-              <div class="rota-local-search-wrap">
-                <label class="sr-only" for="rota-origem">Origem</label>
-                <div class="rota-local-search">
-                  <i data-lucide="map-pin" class="w-4 h-4 rota-search-icon"></i>
-                  <input
-                    type="text"
-                    id="rota-origem"
-                    class="rota-local-input"
-                    placeholder="Ex.: Barra da Tijuca, Méier, sua casa..."
-                    autocomplete="off"
-                    spellcheck="false"
-                    maxlength="255"
-                    aria-autocomplete="list"
-                    aria-controls="rota-origem-sugestoes"
-                    aria-expanded="false" />
-                </div>
-                <div id="rota-origem-sugestoes" class="rota-local-resultados" role="listbox" aria-label="Sugestões de origem" hidden></div>
-                <p id="rota-origem-hint" class="rotas-hint">Sugestões aparecem ao digitar; você pode usar qualquer local.</p>
-              </div>
-            </div>
+          <div class="rotas-tabs" role="tablist" aria-label="Visualização de rotas">
+            <button type="button" class="rotas-tab is-active" role="tab"
+                    data-rota-tab="lista" aria-selected="true" aria-controls="rota-panel-lista">
+              <i data-lucide="list" class="w-4 h-4" aria-hidden="true"></i>
+              Registros
+            </button>
 
-            <div class="rotas-block">
-              <div class="rotas-block-head">
-                <span class="rotas-step">2</span>
-                <div>
-                  <h3>Destino</h3>
-                  <p>Para onde você quer chegar</p>
-                </div>
-              </div>
-              <div class="rota-local-search-wrap">
-                <label class="sr-only" for="rota-destino">Destino</label>
-                <div class="rota-local-search">
-                  <i data-lucide="flag" class="w-4 h-4 rota-search-icon"></i>
-                  <input
-                    type="text"
-                    id="rota-destino"
-                    class="rota-local-input"
-                    placeholder="Ex.: UNIRIO, Centro, trabalho..."
-                    autocomplete="off"
-                    spellcheck="false"
-                    maxlength="255"
-                    aria-autocomplete="list"
-                    aria-controls="rota-destino-sugestoes"
-                    aria-expanded="false" />
-                </div>
-                <div id="rota-destino-sugestoes" class="rota-local-resultados" role="listbox" aria-label="Sugestões de destino" hidden></div>
-                <p id="rota-destino-hint" class="rotas-hint">Sugestões aparecem ao digitar; você pode usar qualquer local.</p>
-              </div>
-            </div>
-
-            <div class="rotas-block">
-              <div class="rotas-block-head">
-                <span class="rotas-step">3</span>
-                <div>
-                  <h3>Como você faz esse trajeto</h3>
-                  <p>Conte o caminho do seu jeito, com linhas, metrô ou baldes</p>
-                </div>
-              </div>
-              <label class="sr-only" for="rota-descricao-input">Descrição do trajeto</label>
-              <textarea
-                id="rota-descricao-input"
-                class="rotas-textarea"
-                rows="5"
-                maxlength="500"
-                placeholder="Ex.: Eu saio da Barra, pego o metrô, depois o 513 em Botafogo e chego na UNIRIO."></textarea>
-              <p class="rotas-hint">Máximo de 500 caracteres.</p>
-            </div>
-
-            <button id="rota-compartilhar" type="button" class="pill-btn rotas-submit" disabled>
-              Compartilhar rota
+            <button type="button" class="rotas-tab" role="tab"
+                    data-rota-tab="form" aria-selected="false" aria-controls="rota-panel-form">
+              <i data-lucide="plus" class="w-4 h-4" aria-hidden="true"></i>
+              Nova rota
             </button>
           </div>
+        </div>
 
-          <aside class="rotas-resultado section-card">
-            <p class="eyebrow">Prévia da sua rota</p>
-            <div class="rotas-trajeto-resumo">
-              <div class="rotas-ponto">
-                <span class="rotas-ponto-label">Origem</span>
-                <strong id="rota-resumo-origem">—</strong>
+        <!-- ABA 1 — REGISTROS -->
+        <div id="rota-panel-lista" class="rota-panel" role="tabpanel">
+
+          <div class="rota-empty section-card"
+               th:if="${rotas == null or rotas.isEmpty()}">
+            <i data-lucide="route" class="w-8 h-8" aria-hidden="true"></i>
+            <p>Nenhuma rota compartilhada ainda.</p>
+          </div>
+
+          <div class="rota-lista" th:if="${rotas != null and !rotas.isEmpty()}">
+            <div class="rota-card section-card" th:each="rota : ${rotas}">
+
+              <div class="rota-card-top">
+                <div class="rota-trajeto-inline">
+            <span class="rota-local-badge origem-badge">
+              <i data-lucide="map-pin" class="w-3 h-3" aria-hidden="true"></i>
+              <span th:text="${rota.origem}">Barra da Tijuca</span>
+            </span>
+
+                  <i data-lucide="arrow-right" class="w-4 h-4 rota-seta" aria-hidden="true"></i>
+
+                  <span class="rota-local-badge destino-badge">
+              <i data-lucide="flag" class="w-3 h-3" aria-hidden="true"></i>
+              <span th:text="${rota.destino}">UNIRIO</span>
+            </span>
+                </div>
+
+                <div class="rota-card-meta">
+                  <time class="rota-data muted"
+                        th:datetime="${rota.criadoEm}"
+                        th:text="${#temporals.format(rota.criadoEm, 'dd/MM/yyyy · HH:mm')}">
+                    01/01/2025 · 14:30
+                  </time>
+                </div>
               </div>
-              <div class="rotas-trajeto-seta" aria-hidden="true">
-                <i data-lucide="arrow-right" class="w-5 h-5"></i>
+
+              <div class="rota-card-body">
+                <p class="rota-descricao"
+                   th:if="${rota.descricao != null and !#strings.isEmpty(rota.descricao)}"
+                   th:text="${rota.descricao}">Descrição da rota.</p>
+                <p class="rota-descricao muted"
+                   th:unless="${rota.descricao != null and !#strings.isEmpty(rota.descricao)}">
+                  Sem descrição adicional.
+                </p>
               </div>
-              <div class="rotas-ponto">
-                <span class="rotas-ponto-label">Destino</span>
-                <strong id="rota-resumo-destino">—</strong>
+
+              <div class="rota-card-footer"
+                   th:if="${rota.nomeUsuario != null and !#strings.isEmpty(rota.nomeUsuario)}">
+                <i data-lucide="user" aria-hidden="true"></i>
+                <span th:text="${rota.nomeUsuario}">Usuário</span>
               </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- ABA 2 — NOVA ROTA (formulário existente movido para cá) -->
+        <div id="rota-panel-form" class="rota-panel" role="tabpanel" style="display:none">
+          <div class="rotas-layout">
+
+            <div class="rotas-form section-card">
+              <!-- BLOCO 1 — Origem -->
+              <div class="rotas-block">
+                <div class="rotas-block-head">
+                  <span class="rotas-step">1</span>
+                  <div><h3>Origem</h3><p>De onde você sai (qualquer bairro ou ponto)</p></div>
+                </div>
+                <div class="rota-local-search-wrap">
+                  <label class="sr-only" for="rota-origem">Origem</label>
+                  <div class="rota-local-search">
+                    <i data-lucide="map-pin" class="w-4 h-4 rota-search-icon"></i>
+                    <input type="text" id="rota-origem" class="rota-local-input"
+                           placeholder="Ex.: Barra da Tijuca, Méier, sua casa..."
+                           autocomplete="off" spellcheck="false" maxlength="255"
+                           aria-autocomplete="list" aria-controls="rota-origem-sugestoes"
+                           aria-expanded="false" />
+                  </div>
+                  <div id="rota-origem-sugestoes" class="rota-local-resultados"
+                       role="listbox" aria-label="Sugestões de origem" hidden></div>
+                  <p id="rota-origem-hint" class="rotas-hint">
+                    Sugestões aparecem ao digitar; você pode usar qualquer local.
+                  </p>
+                </div>
+              </div>
+
+              <!-- BLOCO 2 — Destino -->
+              <div class="rotas-block">
+                <div class="rotas-block-head">
+                  <span class="rotas-step">2</span>
+                  <div><h3>Destino</h3><p>Para onde você quer chegar</p></div>
+                </div>
+                <div class="rota-local-search-wrap">
+                  <label class="sr-only" for="rota-destino">Destino</label>
+                  <div class="rota-local-search">
+                    <i data-lucide="flag" class="w-4 h-4 rota-search-icon"></i>
+                    <input type="text" id="rota-destino" class="rota-local-input"
+                           placeholder="Ex.: UNIRIO, Centro, trabalho..."
+                           autocomplete="off" spellcheck="false" maxlength="255"
+                           aria-autocomplete="list" aria-controls="rota-destino-sugestoes"
+                           aria-expanded="false" />
+                  </div>
+                  <div id="rota-destino-sugestoes" class="rota-local-resultados"
+                       role="listbox" aria-label="Sugestões de destino" hidden></div>
+                  <p id="rota-destino-hint" class="rotas-hint">
+                    Sugestões aparecem ao digitar; você pode usar qualquer local.
+                  </p>
+                </div>
+              </div>
+
+              <!-- BLOCO 3 — Descrição -->
+              <div class="rotas-block">
+                <div class="rotas-block-head">
+                  <span class="rotas-step">3</span>
+                  <div>
+                    <h3>Como você faz esse trajeto</h3>
+                    <p>Conte o caminho do seu jeito, com linhas, metrô ou baldes</p>
+                  </div>
+                </div>
+                <label class="sr-only" for="rota-descricao-input">Descrição do trajeto</label>
+                <textarea id="rota-descricao-input" class="rotas-textarea" rows="5"
+                          maxlength="500"
+                          placeholder="Ex.: Eu saio da Barra, pego o metrô, depois o 513 em Botafogo e chego na UNIRIO."></textarea>
+                <p class="rotas-hint">Máximo de 500 caracteres.</p>
+              </div>
+
+              <button id="rota-compartilhar" type="button" class="pill-btn rotas-submit" disabled>
+                Compartilhar rota
+              </button>
             </div>
 
-            <div class="rota-descricao-wrap">
-              <p class="rotas-label">Seu caminho</p>
-              <p id="rota-resumo-descricao" class="rota-descricao muted">
-                Descreva acima como você faz esse trajeto no dia a dia.
-              </p>
-            </div>
-
-            <div class="rota-resumo-list">
-              <div class="rota-resumo-item">
-                <i data-lucide="users" class="w-4 h-4"></i>
-                <span>Sua dica ajuda outras pessoas que fazem o mesmo caminho</span>
+            <aside class="rotas-resultado section-card">
+              <p class="eyebrow">Prévia da sua rota</p>
+              <div class="rotas-trajeto-resumo">
+                <div class="rotas-ponto">
+                  <span class="rotas-ponto-label">Origem</span>
+                  <strong id="rota-resumo-origem">—</strong>
+                </div>
+                <div class="rotas-trajeto-seta" aria-hidden="true">
+                  <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                </div>
+                <div class="rotas-ponto">
+                  <span class="rotas-ponto-label">Destino</span>
+                  <strong id="rota-resumo-destino">—</strong>
+                </div>
               </div>
-            </div>
-          </aside>
+
+              <div class="rota-descricao-wrap">
+                <p class="rotas-label">Seu caminho</p>
+                <p id="rota-resumo-descricao" class="rota-descricao muted">
+                  Descreva acima como você faz esse trajeto no dia a dia.
+                </p>
+              </div>
+
+              <div class="rota-resumo-list">
+                <div class="rota-resumo-item">
+                  <i data-lucide="info" class="w-4 h-4"></i>
+                  <span>Os registros mais recentes aparecem primeiro na aba de rotas.</span>
+                </div>
+                <div class="rota-resumo-item">
+                  <i data-lucide="users" class="w-4 h-4"></i>
+                  <span>Sua dica ajuda outras pessoas que fazem o mesmo caminho.</span>
+                </div>
+              </div>
+            </aside>
+          </div>
         </div>
 
         <div id="rota-toast" class="rota-toast" role="status" aria-live="polite" hidden>
@@ -926,69 +1004,38 @@
         <div class="section-head">
           <div>
             <h2>Horários</h2>
-            <p>Saídas previstas para hoje com leitura mais ampla para web</p>
+            <p>Saídas previstas por itinerário oficial da linha</p>
           </div>
         </div>
 
-        <div class="schedule-tabs">
-          <button class="schedule-pill is-active" type="button">302 · Centro</button>
-          <button class="schedule-pill" type="button">415 · Tijuca</button>
-          <button class="schedule-pill" type="button">108 · Zona Norte</button>
+        <div id="schedule-tabs" class="schedule-tabs">
+          <button class="schedule-pill is-active" type="button" data-linha="302">302</button>
+          <button class="schedule-pill" type="button" data-linha="415">415</button>
+          <button class="schedule-pill" type="button" data-linha="108">108</button>
         </div>
 
-        <div class="schedule-wrap">
+        <div id="schedule-wrap" class="schedule-wrap">
           <div class="schedule-card section-card">
             <div class="card-top">
               <div>
                 <div class="eyebrow">Linha selecionada</div>
-                <h3 style="margin:6px 0 0;font-size:1.12rem;font-weight:800;">302 · UNIRIO Centro</h3>
+                <h3 id="schedule-title" style="margin:6px 0 0;font-size:1.12rem;font-weight:800;">302</h3>
               </div>
               <span class="status-chip" style="background:#F5CF27;color:#000;">Hoje</span>
             </div>
 
-            <div class="trip-featured">
-              <div>
-                <p>Saída</p>
-                <strong>22:00</strong>
-              </div>
-              <div>
-                <p>Chegada</p>
-                <strong>22:35</strong>
-              </div>
-              <span class="tag-next">Próximo</span>
+            <div id="schedule-loading" class="muted" style="margin-top:16px;">
+              Carregando horários...
             </div>
 
-            <div class="trip-row">
-              <div>
-                <p>Saída</p>
-                <strong>23:00</strong>
-              </div>
-              <div style="text-align:right;">
-                <p>Chegada</p>
-                <strong>23:35</strong>
-              </div>
+            <div id="schedule-content" hidden></div>
+
+            <div id="schedule-empty" class="muted" style="margin-top:16px;" hidden>
+              Nenhum horário encontrado para esta linha.
             </div>
 
-            <div class="trip-row">
-              <div>
-                <p>Saída</p>
-                <strong>00:00</strong>
-              </div>
-              <div style="text-align:right;">
-                <p>Chegada</p>
-                <strong>00:35</strong>
-              </div>
-            </div>
-
-            <div class="trip-row">
-              <div>
-                <p>Saída</p>
-                <strong>01:00</strong>
-              </div>
-              <div style="text-align:right;">
-                <p>Chegada</p>
-                <strong>01:35</strong>
-              </div>
+            <div id="schedule-error" class="muted" style="margin-top:16px;color:#b42318;" hidden>
+              Não foi possível carregar os horários agora.
             </div>
           </div>
         </div>
